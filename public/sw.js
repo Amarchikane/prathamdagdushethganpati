@@ -5,23 +5,32 @@ const ASSETS_TO_PRECACHE = [
   '/ganpati-logo.jpg'
 ];
 
-// Install: Pre-cache core app shell
+// Install: Activate immediately without waiting
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_PRECACHE);
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const url of ASSETS_TO_PRECACHE) {
+        try {
+          const res = await fetch(url);
+          if (res.ok && !res.redirected) {
+            await cache.put(url, res);
+          }
+        } catch (e) {
+          // Ignore fetch errors during install
+        }
+      }
+    })
   );
 });
 
-// Activate: Clean up old caches immediately and claim clients
+// Activate: Immediately purge all old cache versions and claim all open pages
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
-            console.log('Clearing old cache:', cache);
             return caches.delete(cache);
           }
         })
@@ -30,16 +39,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Network-first for navigation, Stale-while-revalidate for assets
+// Fetch: Safe Network-first for navigation, stale-while-revalidate for static assets
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // Handle SPA navigation requests: Always network-first to avoid redirect loops
+  // Navigation requests (loading/refreshing pages)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && !networkResponse.redirected) {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put('/', clone));
           }
@@ -53,11 +62,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle static assets (JS, CSS, images, fonts)
+  // Static assets (JS, CSS, images, fonts)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // In background: refresh cache if network is available
         fetch(event.request).then((networkResponse) => {
           if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
@@ -66,7 +74,6 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
 
-      // Not in cache: fetch from network and cache it
       return fetch(event.request).then((networkResponse) => {
         if (!networkResponse || (networkResponse.status !== 200 && networkResponse.type !== 'opaque')) {
           return networkResponse;
