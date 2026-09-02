@@ -505,6 +505,59 @@ export default {
         }
       }
 
+      // 9. Super Admin Edit / Update Pavthi
+      if (url.pathname === '/api/superadmin/pavthi' && (request.method === 'PUT' || request.method === 'PATCH')) {
+        try {
+          const body = await request.json();
+          const { id, name_mr, name_en, mobile, amount, is_pending, pending_amount, landmark_mr, payment_mode, note_mr } = body;
+
+          if (!id || !name_mr || !amount) {
+            return jsonResponse({ error: 'पावती ID, दात्याचे नाव आणि रक्कम आवश्यक आहेत' }, 400);
+          }
+
+          const totalAmt = Number(amount);
+          const isPending = Boolean(is_pending);
+          const pendingAmt = isPending ? Math.max(0, Number(pending_amount) || 0) : 0;
+          const receivedAmt = isPending ? Math.max(0, totalAmt - pendingAmt) : totalAmt;
+
+          if (env && env.DB) {
+            await env.DB.prepare(`
+              UPDATE pavthi_entries SET
+                name_mr = ?,
+                name_en = ?,
+                mobile = ?,
+                amount = ?,
+                is_pending = ?,
+                pending_amount = ?,
+                received_amount = ?,
+                landmark_mr = ?,
+                payment_mode = ?,
+                note_mr = ?
+              WHERE id = ?
+            `).bind(
+              name_mr.trim(),
+              (name_en || name_mr).trim(),
+              (mobile || '').trim(),
+              totalAmt,
+              isPending ? 1 : 0,
+              pendingAmt,
+              receivedAmt,
+              (landmark_mr || 'शुक्रवार पेठ').trim(),
+              payment_mode || 'रोख (Cash)',
+              note_mr || '',
+              id
+            ).run();
+          }
+
+          return jsonResponse({
+            success: true,
+            message: 'पावती तपशील यशस्वीरीत्या अद्ययावत (Updated) केले गेले.'
+          });
+        } catch (e) {
+          return jsonResponse({ error: 'पावती अपडेट करता आली नाही: ' + e.message }, 500);
+        }
+      }
+
       return jsonResponse({ error: 'Route not found' }, 404);
     }
 

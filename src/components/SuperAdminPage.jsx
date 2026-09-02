@@ -15,7 +15,8 @@ import {
   Search, 
   LogOut,
   X,
-  AlertCircle
+  AlertCircle,
+  Pencil
 } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/translations';
 import { ReceiptModal } from './ReceiptModal';
@@ -36,6 +37,7 @@ export function SuperAdminPage({ lang, user, onLogout }) {
   const [selectedAdminFilter, setSelectedAdminFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [editingReceipt, setEditingReceipt] = useState(null);
 
   // Add Admin Modal state
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -202,6 +204,30 @@ export function SuperAdminPage({ lang, user, onLogout }) {
       }
 
       setMsg({ type: 'success', text: data.message });
+      loadAllData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Update/Edit Receipt Handler
+  const handleSaveEditReceipt = async (e) => {
+    e.preventDefault();
+    if (!editingReceipt || !editingReceipt.id) return;
+
+    try {
+      const res = await fetch('/api/superadmin/pavthi', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingReceipt)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'पावती अपडेट करता आली नाही');
+      }
+
+      setMsg({ type: 'success', text: data.message || 'पावती तपशील यशस्वीरीत्या अद्ययावत केले गेले.' });
+      setEditingReceipt(null);
       loadAllData();
     } catch (err) {
       alert(err.message);
@@ -674,6 +700,15 @@ export function SuperAdminPage({ lang, user, onLogout }) {
                             <Eye className="w-4 h-4" />
                           </button>
 
+                          {/* Edit Pavthi */}
+                          <button
+                            onClick={() => setEditingReceipt({ ...r })}
+                            className="p-1.5 text-sky-600 hover:text-sky-900 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                            title="पावती तपशील संपादित करा (Edit Details)"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+
                           {/* Delete Pavthi */}
                           <button
                             onClick={() => handleDeleteReceipt(r.id, r.receipt_no)}
@@ -789,6 +824,169 @@ export function SuperAdminPage({ lang, user, onLogout }) {
                   className="px-5 py-2 bg-[#4A000B] hover:bg-[#3B070E] text-white text-xs font-black rounded-xl shadow cursor-pointer"
                 >
                   जोडा (Add Admin)
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================================================
+          MODAL: EDIT RECEIPT DETAILS (पावती संपादन)
+          ========================================================================== */}
+      {editingReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto animate-fadeIn">
+          <div className="bg-white border-2 border-[#D4AF37] rounded-3xl shadow-2xl max-w-lg w-full my-auto overflow-hidden">
+            <div className="bg-gradient-to-r from-[#4A000B] to-[#800020] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-black text-sm sm:text-base">
+                <Pencil className="w-5 h-5 text-[#FDE68A]" />
+                <span>पावती तपशील संपादन ({editingReceipt.receipt_no})</span>
+              </div>
+              <button
+                onClick={() => setEditingReceipt(null)}
+                className="text-white/80 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditReceipt} className="p-4 sm:p-5 space-y-3 max-h-[82vh] overflow-y-auto">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  दात्याचे पूर्ण नाव (मराठीत) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingReceipt.name_mr || ''}
+                  onChange={e => setEditingReceipt({ ...editingReceipt, name_mr: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:border-[#4A000B]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  दात्याचे नाव (English)
+                </label>
+                <input
+                  type="text"
+                  value={editingReceipt.name_en || ''}
+                  onChange={e => setEditingReceipt({ ...editingReceipt, name_en: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    मोबाईल नंबर
+                  </label>
+                  <input
+                    type="tel"
+                    value={editingReceipt.mobile || ''}
+                    onChange={e => setEditingReceipt({ ...editingReceipt, mobile: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-bold focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    एकूण देणगी रक्कम (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={editingReceipt.amount || ''}
+                    onChange={e => setEditingReceipt({ ...editingReceipt, amount: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-black text-[#800020] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Pending check */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(editingReceipt.is_pending)}
+                    onChange={e => setEditingReceipt({ ...editingReceipt, is_pending: e.target.checked ? 1 : 0 })}
+                    className="w-4 h-4 text-[#800020] rounded"
+                  />
+                  <span className="text-xs font-bold text-slate-800">
+                    रक्कम बाकी आहे का? (Pending)
+                  </span>
+                </label>
+
+                {Boolean(editingReceipt.is_pending) && (
+                  <div>
+                    <label className="block text-xs font-bold text-rose-800 mb-1">
+                      बाकी शिल्लक रक्कम (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      value={editingReceipt.pending_amount || ''}
+                      onChange={e => setEditingReceipt({ ...editingReceipt, pending_amount: e.target.value })}
+                      className="w-full px-3 py-1.5 border border-rose-300 rounded-lg text-xs sm:text-sm font-mono font-bold text-rose-700 focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    परिसर / चौक
+                  </label>
+                  <input
+                    type="text"
+                    value={editingReceipt.landmark_mr || ''}
+                    onChange={e => setEditingReceipt({ ...editingReceipt, landmark_mr: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    देणगी पद्धत
+                  </label>
+                  <select
+                    value={editingReceipt.payment_mode || 'रोख (Cash)'}
+                    onChange={e => setEditingReceipt({ ...editingReceipt, payment_mode: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-700 focus:outline-none bg-white"
+                  >
+                    <option value="रोख (Cash)">रोख (Cash)</option>
+                    <option value="UPI / QR (Online)">UPI / QR (Online)</option>
+                    <option value="चेक (Cheque)">चेक (Cheque)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  विशेष टीप / नोंद (Note)
+                </label>
+                <input
+                  type="text"
+                  value={editingReceipt.note_mr || ''}
+                  onChange={e => setEditingReceipt({ ...editingReceipt, note_mr: e.target.value })}
+                  placeholder="काही विशेष नोंद असल्यास..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingReceipt(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                >
+                  रद्द करा
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-gradient-to-r from-[#4A000B] to-[#800020] hover:from-[#3B070E] hover:to-[#630D1A] text-white text-xs font-black rounded-xl shadow cursor-pointer"
+                >
+                  बदल जतन करा (Save Changes)
                 </button>
               </div>
             </form>

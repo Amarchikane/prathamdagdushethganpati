@@ -276,6 +276,38 @@ const devMandalApiPlugin = () => ({
         return;
       }
 
+      // 9. Super Admin Edit Pavthi
+      if (pathname === '/api/superadmin/pavthi' && (req.method === 'PUT' || req.method === 'PATCH')) {
+        parseJsonBody().then(body => {
+          const { id, name_mr, name_en, mobile, amount, is_pending, pending_amount, landmark_mr, payment_mode, note_mr } = body;
+          const idx = mockPavthiDb.findIndex(r => r.id === id);
+          if (idx !== -1) {
+            const totalAmt = Number(amount) || mockPavthiDb[idx].amount;
+            const isPending = Boolean(is_pending);
+            const pendingAmt = isPending ? Math.max(0, Number(pending_amount) || 0) : 0;
+            const receivedAmt = isPending ? Math.max(0, totalAmt - pendingAmt) : totalAmt;
+
+            mockPavthiDb[idx] = {
+              ...mockPavthiDb[idx],
+              name_mr: name_mr || mockPavthiDb[idx].name_mr,
+              name_en: name_en || mockPavthiDb[idx].name_en,
+              mobile: mobile !== undefined ? mobile : mockPavthiDb[idx].mobile,
+              amount: totalAmt,
+              is_pending: isPending ? 1 : 0,
+              pending_amount: pendingAmt,
+              received_amount: receivedAmt,
+              landmark_mr: landmark_mr || mockPavthiDb[idx].landmark_mr,
+              payment_mode: payment_mode || mockPavthiDb[idx].payment_mode,
+              note_mr: note_mr !== undefined ? note_mr : mockPavthiDb[idx].note_mr
+            };
+            sendJson({ success: true, message: 'पावती यशस्वीरीत्या अद्ययावत (Updated) झाली.' });
+          } else {
+            sendJson({ error: 'पावती सापडली नाही' }, 404);
+          }
+        });
+        return;
+      }
+
       next();
     });
   }
