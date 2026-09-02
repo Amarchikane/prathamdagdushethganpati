@@ -13,8 +13,67 @@ import { LoginPage } from './components/LoginPage';
 import { PavthiPage } from './components/PavthiPage';
 import { SuperAdminPage } from './components/SuperAdminPage';
 import { TRANSLATIONS } from './i18n/translations';
-import { SearchX, ChevronDown, PlusCircle, ShieldCheck, ArrowLeft, KeyRound, User, Lock } from 'lucide-react';
+import { SearchX, ChevronDown, PlusCircle, ShieldCheck, ArrowLeft, KeyRound, User, Lock, RotateCcw, AlertTriangle } from 'lucide-react';
 import { GanpatiLogo } from './components/GanpatiLogo';
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught error:', error, errorInfo);
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-[50vh] flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-rose-300 rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center shadow-2xl space-y-4">
+            <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-200">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900">
+                काहीतरी तांत्रिक त्रुटी आली (Render Error)
+              </h3>
+              <p className="text-xs text-slate-600 font-medium">
+                आपला डेटा सुरक्षित आहे. कृपया खालील बटण दाबून पान पुन्हा लोड करा.
+              </p>
+            </div>
+
+            {this.state.error && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left overflow-x-auto text-[11px] font-mono text-rose-700">
+                {this.state.error.message || String(this.state.error)}
+              </div>
+            )}
+
+            <button
+              onClick={this.handleReset}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#4A000B] to-[#800020] text-white font-bold text-xs rounded-xl shadow-md hover:from-[#3B070E] transition cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>पान रिफ्रेश करा (Refresh Page)</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const PAGE_SIZE = 30;
 
@@ -103,8 +162,9 @@ export function App() {
         onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
-      {/* Main Content Body */}
-      <main className="flex-1 px-3 sm:px-6 pb-8">
+      {/* Main Content Body with ErrorBoundary Protection */}
+      <ErrorBoundary>
+        <main className="flex-1 px-3 sm:px-6 pb-8">
         
         {/* ==========================================================================
             SEPARATE STANDALONE PAGE: SUPER ADMIN EXECUTIVE PORTAL
@@ -295,6 +355,7 @@ export function App() {
           </>
         )}
       </main>
+      </ErrorBoundary>
 
       {/* Show App Download Footer only on public register/karyakarta pages, not in Super Admin portal */}
       {activeTab !== 'superadmin' ? (

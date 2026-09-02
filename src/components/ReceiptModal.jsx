@@ -45,31 +45,32 @@ export function ReceiptModal({ isOpen, onClose, receipt, onResetNew, lang }) {
     img.onload = () => setTemplateLoaded(true);
   }, []);
 
-  if (!isOpen || !receipt) return null;
+  // Safe reference when receipt is null (during initial render or when closed)
+  const r = receipt || {};
 
   // Extract clean receipt number (e.g. "101" from "AM-2024-0101" or raw receipt_no)
-  const rawReceiptNo = receipt.receipt_no || '101';
+  const rawReceiptNo = r.receipt_no || '101';
   const shortNoMatch = rawReceiptNo.match(/\d+$/);
   const shortNo = shortNoMatch ? String(parseInt(shortNoMatch[0], 10)) : rawReceiptNo;
   const receiptNoMarathi = toMarathiDigits(shortNo);
 
   // Date in Marathi numerals
-  const rawDate = receipt.date || new Date().toLocaleDateString('mr-IN');
+  const rawDate = r.date || new Date().toLocaleDateString('mr-IN');
   const dateMarathi = toMarathiDigits(rawDate);
 
   // Donor Name
-  const donorName = (receipt.name_mr || receipt.name_en || '').trim();
+  const donorName = (r.name_mr || r.name_en || '').trim();
 
   // Financials & Pending amounts
-  const isPending = Boolean(receipt.is_pending) && Number(receipt.pending_amount) > 0;
-  const totalAmount = Number(receipt.amount) || 0;
-  const pendingAmount = isPending ? Number(receipt.pending_amount) : 0;
+  const isPending = Boolean(r.is_pending) && Number(r.pending_amount) > 0;
+  const totalAmount = Number(r.amount) || 0;
+  const pendingAmount = isPending ? Number(r.pending_amount) : 0;
   const receivedAmount = isPending 
-    ? (receipt.received_amount !== undefined ? Number(receipt.received_amount) : Math.max(0, totalAmount - pendingAmount))
+    ? (r.received_amount !== undefined ? Number(r.received_amount) : Math.max(0, totalAmount - pendingAmount))
     : totalAmount;
 
   // Amount in Marathi Words: e.g. "एक हजार एक रुपये मात्र"
-  const amountWords = receipt.amount_words_mr || numberToMarathiWords(receivedAmount, 'रुपये मात्र');
+  const amountWords = r.amount_words_mr || numberToMarathiWords(receivedAmount, 'रुपये मात्र');
 
   // Amount in Marathi digits: e.g. "१००१"
   const amountDigitsMarathi = toMarathiDigits(receivedAmount);
@@ -124,8 +125,8 @@ export function ReceiptModal({ isOpen, onClose, receipt, onResetNew, lang }) {
 *श्री./सौ.:* ${donorName}
 *यांसकडून अक्षरी रुपये:* ${amountWords}
 *रु. (रक्कम):* ${amountDigitsMarathi}/-
-${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)\n` : ''}*चौक / परिसर:* ${receipt.landmark_mr || 'शुक्रवार पेठ'}
-*पद्धत:* ${receipt.payment_mode || 'रोख मिळाले'}
+${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)\n` : ''}*चौक / परिसर:* ${r.landmark_mr || 'शुक्रवार पेठ'}
+*पद्धत:* ${r.payment_mode || 'रोख मिळाले'}
 ----------------------------------------
 आपल्या सहकार्याबद्दल मनःपूर्वक धन्यवाद!
 बाप्पा आपल्या कुटुंबाला सुख, समृद्धी आणि उत्तम आरोग्य देवो!
@@ -378,6 +379,9 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
       alert('पावती डाऊनलोड करताना त्रुटी आली: ' + e.message);
     }
   };
+
+  // Early return if modal is closed or no receipt selected (Hooks have already executed)
+  if (!isOpen || !receipt) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
@@ -634,7 +638,7 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
               </button>
 
               {/* Optional: Share sheet for Telegram, Groups or other apps */}
-              {typeof navigator !== 'undefined' && navigator.canShare && (
+              {typeof navigator !== 'undefined' && Boolean(navigator.canShare) && (
                 <button
                   type="button"
                   onClick={handleNativeShare}

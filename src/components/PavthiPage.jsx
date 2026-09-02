@@ -173,7 +173,7 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
     }));
   };
 
-  const handleResetForm = () => {
+  const handleResetForm = (keepMessages = false) => {
     setNameInput('');
     setConvertedName('');
     setDetectedScript('empty');
@@ -181,8 +181,10 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
     setIsPending(false);
     setPendingAmount('');
     setFormData(INITIAL_FORM);
-    setErrorMsg('');
-    setSuccessMsg('');
+    if (!keepMessages) {
+      setErrorMsg('');
+      setSuccessMsg('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -272,7 +274,7 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
         setRecentEntries(prev => [savedEntry, ...prev]);
         setSuccessMsg(data.message || 'पावती D1 डेटाबेसमध्ये नोंद झाली!');
         setSelectedReceipt(savedEntry);
-        handleResetForm();
+        handleResetForm(true);
       } else {
         // D1 database not bound on server -> fallback to local so donor still gets receipt immediately
         const fallbackEntry = {
@@ -286,7 +288,7 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
         setRecentEntries(prev => [fallbackEntry, ...prev]);
         setErrorMsg(`⚠️ D1 डेटाबेस जोडलेला नाही: ${data.error || 'D1 DB Binding Missing'}. पावती फक्त तात्पुरती स्थानिक पातळीवर सेव्ह झाली आहे.`);
         setSelectedReceipt(fallbackEntry);
-        handleResetForm();
+        handleResetForm(true);
       }
     } catch (err) {
       const fallbackEntry = {
@@ -300,7 +302,7 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
       setRecentEntries(prev => [fallbackEntry, ...prev]);
       setErrorMsg(`⚠️ नेटवर्क त्रुटी: ${err.message}. पावती स्थानिक मेमरीमध्ये जतन झाली आहे.`);
       setSelectedReceipt(fallbackEntry);
-      handleResetForm();
+      handleResetForm(true);
     } finally {
       setLoading(false);
     }
