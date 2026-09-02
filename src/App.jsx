@@ -8,6 +8,7 @@ import { DisclaimerBanner } from './components/DisclaimerBanner';
 import { SearchBar } from './components/SearchBar';
 import { DonorCard } from './components/DonorCard';
 import { ExportModal } from './components/ExportModal';
+import { AppDownloadFooter } from './components/AppDownloadFooter';
 import { TRANSLATIONS } from './i18n/translations';
 import { SearchX, ChevronDown } from 'lucide-react';
 
@@ -143,14 +144,8 @@ export function App() {
         <DisclaimerBanner lang={lang} />
       </main>
 
-      {/* Royal Maroon Mobile Footer */}
-      <footer className="bg-[#1C0D10] text-[#FDE68A]/90 py-5 sm:py-6 border-t-2 border-[#D4AF37]/40 text-center text-xs">
-        <div className="max-w-5xl mx-auto px-4 flex items-center justify-center">
-          <div className="font-semibold text-[11px] sm:text-xs tracking-wide">
-            अकरा मारुती चौक सार्वजनिक गणेश उत्सव मित्र मंडळ, शुक्रवार पेठ पुणे.
-          </div>
-        </div>
-      </footer>
+      {/* Royal Maroon Mobile Footer with App Download / Install */}
+      <AppDownloadFooter lang={lang} t={t} />
 
       {/* Export Data Modal */}
       <ExportModal

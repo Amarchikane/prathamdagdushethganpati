@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "dev.workers.amarchikane225.prathamdagdushethganpati.twa",
+        "sha256_cert_fingerprints": ["74:7C:D3:43:B7:4A:BD:58:0B:0E:61:DD:CA:E0:84:8C:7F:68:B2:50:82:C5:A6:EE:73:CD:F7:13:43:28:E6:96"]
+      }
+    }]

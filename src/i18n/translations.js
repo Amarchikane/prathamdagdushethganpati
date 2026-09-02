@@ -41,7 +41,11 @@ export const TRANSLATIONS = {
     copy_ref: "संदर्भ कॉपी करा",
     year_badge: "वर्ष",
     show_more: "आणखी नोंदी दाखवा",
-    showing_count: "एकूण {total} पैकी {shown} नोंदी"
+    showing_count: "एकूण {total} पैकी {shown} नोंदी",
+    download_app_btn: "अँड्रॉइड अॅप डाउनलोड करा (APK)",
+    install_app_btn: "अॅप इन्स्टॉल करा",
+    download_app_badge: "मोफत • ऑफलाइन कार्यक्षम",
+    app_download_note: "APK डाउनलोड झाल्यावर 'Install' वर टॅप करा."
   },
   en: {
     org_title: "Akara Maruti Chowk\nSarvajanik Ganesh Utsav Mitra Mandal",
@@ -85,6 +89,10 @@ export const TRANSLATIONS = {
     copy_ref: "Copy Reference",
     year_badge: "Year",
     show_more: "Show More Records",
-    showing_count: "Showing {shown} of {total} records"
+    showing_count: "Showing {shown} of {total} records",
+    download_app_btn: "Download Android App (APK)",
+    install_app_btn: "Install App",
+    download_app_badge: "Free • Offline Capable",
+    app_download_note: "After downloading APK, tap to Install on Android."
   }
 };
