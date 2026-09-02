@@ -1,12 +1,11 @@
-const CACHE_NAME = 'mandal-records-v2';
+﻿const CACHE_NAME = 'mandal-records-v3';
 const ASSETS_TO_PRECACHE = [
   '/',
-  '/index.html',
   '/manifest.json',
   '/ganpati-logo.jpg'
 ];
 
-// Install: Pre-cache core app shell and Ganpati logo
+// Install: Pre-cache core app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -15,13 +14,14 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate: Clean up old caches and claim clients immediately
+// Activate: Clean up old caches immediately and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
+            console.log('Clearing old cache:', cache);
             return caches.delete(cache);
           }
         })
@@ -30,23 +30,25 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Stale-While-Revalidate with full offline fallback
+// Fetch: Network-first for navigation, Stale-while-revalidate for assets
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // Handle SPA navigation requests
+  // Handle SPA navigation requests: Always network-first to avoid redirect loops
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/index.html').then((cached) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
+      fetch(event.request)
+        .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse.clone()));
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', clone));
           }
           return networkResponse;
-        }).catch(() => cached);
-
-        return cached || fetchPromise;
-      })
+        })
+        .catch(() => {
+          // Offline fallback
+          return caches.match('/');
+        })
     );
     return;
   }
@@ -75,7 +77,6 @@ self.addEventListener('fetch', (event) => {
         });
         return networkResponse;
       }).catch(() => {
-        // Fallback for image requests when completely offline
         if (event.request.destination === 'image') {
           return caches.match('/ganpati-logo.jpg');
         }
