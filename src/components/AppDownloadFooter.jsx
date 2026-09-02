@@ -60,25 +60,27 @@ export function AppDownloadFooter({ lang, t }) {
                 : 'Install this app on your phone for instant, offline access to all contribution records.'}
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-lg mx-auto">
               {/* Direct Android APK Download Button */}
               <a
                 href="/11Maruti.apk"
                 download="अकरा-मारुती-11Maruti.apk"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#F59E0B] via-[#D97706] to-[#B45309] hover:from-[#FBBF24] hover:to-[#D97706] text-black shadow-md hover:shadow-amber-500/20 active:scale-95 transition-all border border-amber-300/60"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl font-black text-sm bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#1C0D10] shadow-lg shadow-black/40 active:scale-95 transition-all border-2 border-[#FDE68A]"
               >
-                <Download className="w-4 h-4 text-black animate-bounce" />
-                <span>{lang === 'mr' ? 'अँड्रॉइड अॅप डाउनलोड (APK)' : 'Download Android APK'}</span>
+                <Download className="w-5 h-5 text-[#1C0D10] shrink-0 stroke-[2.5] animate-bounce" />
+                <span className="font-extrabold tracking-wide text-slate-950">
+                  {lang === 'mr' ? 'Android (अँड्रॉइड) अॅप डाउनलोड' : 'Download Android App (APK)'}
+                </span>
               </a>
 
               {/* iPhone / iOS Guide Button */}
               <button
                 type="button"
                 onClick={() => setShowIosModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#3B070E] hover:bg-[#520A14] text-[#FDE68A] border border-[#D4AF37]/60 shadow-sm active:scale-95 transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#3B070E] hover:bg-[#520A14] text-[#FDE68A] border-2 border-[#D4AF37]/80 shadow-md active:scale-95 transition-all cursor-pointer"
               >
-                <Share className="w-4 h-4 text-[#FDE68A]" />
-                <span>{lang === 'mr' ? 'आयफोन (Apple / iOS) सूचना' : 'iPhone / iOS Instructions'}</span>
+                <Share className="w-4 h-4 text-[#FDE68A] shrink-0" />
+                <span>{lang === 'mr' ? 'iPhone (आयफोन) इन्स्टॉल सूचना' : 'iPhone / iOS Instructions'}</span>
               </button>
 
               {/* PWA Direct Install Button (Chrome desktop/mobile) */}
