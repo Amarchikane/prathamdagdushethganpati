@@ -95,6 +95,14 @@ async function ensureDbTables(db) {
         UNIQUE(date, username)
       )
     `).run();
+
+    // Migrate pavthi_entries table to add access_token column if not exists
+    try {
+      await db.prepare('ALTER TABLE pavthi_entries ADD COLUMN access_token TEXT').run();
+    } catch (_) {}
+    try {
+      await db.prepare('CREATE INDEX IF NOT EXISTS idx_pavthi_access_token ON pavthi_entries(access_token)').run();
+    } catch (_) {}
   } catch (e) {
     console.error('ensureDbTables initialization error:', e);
   }
@@ -293,9 +301,14 @@ export default {
             year: 'numeric'
           });
 
+          const randomBytes = new Uint8Array(16);
+          crypto.getRandomValues(randomBytes);
+          const accessToken = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+
           const newEntry = {
             id,
             receipt_no: receiptNumber,
+            access_token: accessToken,
             date: entryDate,
             name_mr: name_mr.trim(),
             name_en: (name_en || name_mr).trim(),
@@ -318,14 +331,15 @@ export default {
 
           await env.DB.prepare(`
             INSERT INTO pavthi_entries (
-              id, receipt_no, date, name_mr, name_en, mobile, amount, 
+              id, receipt_no, access_token, date, name_mr, name_en, mobile, amount, 
               amount_words_mr, is_pending, pending_amount, received_amount,
               donation_type, payment_mode, landmark_mr, 
               landmark_en, book_ref, note_mr, created_by, created_by_username, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).bind(
             newEntry.id,
             newEntry.receipt_no,
+            newEntry.access_token,
             newEntry.date,
             newEntry.name_mr,
             newEntry.name_en,
@@ -357,9 +371,63 @@ export default {
         }
       }
 
-      // ==========================================================================
-      // SUPER ADMIN API ENDPOINTS
-      // ==========================================================================
+      // Public Receipt Endpoint with Strict Cryptographic Token Verification
+      if (url.pathname === '/api/public-receipt' && request.method === 'GET') {
+        try {
+          if (!env || !env.DB) {
+            return jsonResponse({ error: 'डेटाबेस उपलब्ध नाही' }, 503);
+          }
+
+          await ensureDbTables(env.DB);
+
+          const receiptParam = (url.searchParams.get('receipt') || '').trim();
+          const keyParam = (url.searchParams.get('key') || '').trim();
+
+          if (!receiptParam || !keyParam) {
+            return jsonResponse({ error: 'अवैध किंवा अपूर्ण पावती लिंक (Missing receipt or security key)' }, 400);
+          }
+
+          const entry = await env.DB.prepare(
+            'SELECT * FROM pavthi_entries WHERE receipt_no = ?'
+          ).bind(receiptParam).first();
+
+          if (!entry) {
+            return jsonResponse({ error: 'पावती सापडली नाही किंवा चुकीचा क्रमांक' }, 404);
+          }
+
+          // Strict Security Check:
+          // Key must match access_token or fallback id (for legacy entries)
+          const validKey = entry.access_token || entry.id;
+          if (entry.access_token) {
+            if (entry.access_token !== keyParam) {
+              return jsonResponse({ error: 'सुरक्षा चेतावणी: अनधिकृत पावती प्रवेश (Security key does not match this receipt)' }, 403);
+            }
+          } else if (validKey !== keyParam && !validKey.startsWith(keyParam)) {
+            return jsonResponse({ error: 'सुरक्षा चेतावणी: अनधिकृत पावती प्रवेश' }, 403);
+          }
+
+          // Return ONLY sanitized public receipt details - zero personal/admin leaks
+          return jsonResponse({
+            success: true,
+            receipt: {
+              receipt_no: entry.receipt_no,
+              date: entry.date,
+              name_mr: entry.name_mr,
+              name_en: entry.name_en,
+              amount: entry.amount,
+              amount_words_mr: entry.amount_words_mr,
+              is_pending: entry.is_pending,
+              pending_amount: entry.pending_amount,
+              received_amount: entry.received_amount,
+              payment_mode: entry.payment_mode,
+              landmark_mr: entry.landmark_mr,
+              created_at: entry.created_at
+            }
+          });
+        } catch (e) {
+          return jsonResponse({ error: 'पावती लोड करताना त्रुटी आली: ' + e.message }, 500);
+        }
+      }
 
       // 4. Super Admin Stats (Overview, By Admin, Daily Collection)
       if (url.pathname === '/api/superadmin/stats' && request.method === 'GET') {

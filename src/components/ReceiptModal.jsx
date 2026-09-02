@@ -109,9 +109,12 @@ export function ReceiptModal({ isOpen, onClose, receipt, onResetNew, lang }) {
     }
   }
 
-  // Digital receipt public link
+  // Digital receipt public link with unguessable cryptographic security key
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-  const onlineReceiptUrl = currentOrigin ? `${currentOrigin}/?receipt=${encodeURIComponent(rawReceiptNo)}` : '';
+  const accessKey = r.access_token || r.id || '';
+  const onlineReceiptUrl = currentOrigin && rawReceiptNo && accessKey 
+    ? `${currentOrigin}/?receipt=${encodeURIComponent(rawReceiptNo)}&key=${encodeURIComponent(accessKey)}` 
+    : '';
 
   // Official Marathi formatted WhatsApp Message
   const shareText = `🚩 *अकरा मारुती चौक सार्वजनिक गणेशोत्सव मंडळ* 🚩
@@ -148,43 +151,43 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
     ctx.drawImage(img, 0, 0, width, height);
 
     // 2. पावती क्र. (Receipt Number)
-    // Label ends at x: 535, baseline: y = 358
+    // Label ends at x: 535, baseline: y = 365
     ctx.font = 'bold 20px "Mukta", sans-serif';
     ctx.fillStyle = '#4A000B';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(receiptNoMarathi, 542, 358);
+    ctx.fillText(receiptNoMarathi, 542, 365);
 
     // 3. दि. (Date)
-    // Label ends at x: 854, baseline: y = 358
+    // Label ends at x: 854, baseline: y = 365
     ctx.font = 'bold 18px "Mukta", sans-serif';
     ctx.fillStyle = '#1E293B';
-    ctx.fillText(dateMarathi, 862, 358);
+    ctx.fillText(dateMarathi, 862, 365);
 
     // 4. श्री./सौ. (Name of Donor) - Exactly matching reference image
     ctx.font = 'bold 21px "Mukta", sans-serif';
     ctx.fillStyle = '#0F172A';
-    ctx.fillText(donorName, 545, 421);
+    ctx.fillText(donorName, 545, 427);
 
     // 5. यांसकडून अक्षरी रुपये (Amount in Words) - Exactly matching reference image
     ctx.font = 'bold 19px "Mukta", sans-serif';
     ctx.fillStyle = '#0F172A';
-    ctx.fillText(amountWords, 642, 461);
+    ctx.fillText(amountWords, 642, 467);
 
-    // 6. Fourth line (Pending info or note) - Top line overlaps printed line at y=496
+    // 6. Fourth line (Pending info or note) - Top line overlaps printed line
     if (isPending) {
       ctx.font = 'bold 16px "Mukta", sans-serif';
       ctx.fillStyle = '#9F1239';
-      ctx.fillText(`⚠️ बाकी शिल्लक रक्कम: रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)`, 465, 506);
+      ctx.fillText(`⚠️ बाकी शिल्लक रक्कम: रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)`, 465, 512);
     }
 
     // 7. रु. (Amount in Numbers inside the white rectangular box)
-    // Box coordinates: x = 504 to 634, y = 551 to 584. Center = 569, 568
+    // Box coordinates: x = 504 to 634, y = 551 to 584. Optical center = 569, 573
     ctx.font = '900 24px "Mukta", sans-serif';
     ctx.fillStyle = '#800020';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${amountDigitsMarathi}/-`, 569, 568);
+    ctx.fillText(`${amountDigitsMarathi}/-`, 569, 573);
   };
 
   const renderLiveReceipt = async () => {
@@ -429,19 +432,31 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
         </div>
 
         {/* ==========================================================================
-            RECEIPT CANVAS / VISUAL CONTAINER
+            RECEIPT CANVAS / VISUAL CONTAINER (FULLY SCROLLABLE)
             ========================================================================== */}
-        <div className="p-3 sm:p-5 overflow-y-auto flex-1 flex flex-col items-center justify-center bg-slate-100">
+        <div className="p-2 sm:p-4 overflow-y-auto flex-1 flex flex-col items-center justify-start bg-slate-100 gap-2">
           
-          {/* 1. OFFICIAL TEMPLATE VIEW - LIVE CANVAS (Guarantees zero text shift on any mobile screen) */}
-          <div className="printable-receipt-container w-full max-w-[840px] shadow-xl rounded-xl overflow-hidden bg-white">
-            <canvas
-              ref={previewCanvasRef}
-              width={1000}
-              height={646}
-              className="w-full h-auto block select-none bg-amber-50/50"
-              style={{ aspectRatio: '1000 / 646' }}
-            />
+          {/* Scroll Guidance Indicator */}
+          <div className="text-[11px] font-bold text-[#800020] bg-amber-100/95 border border-[#D4AF37]/60 px-3.5 py-1 rounded-full flex items-center justify-between gap-2 shadow-2xs select-none w-full max-w-[840px]">
+            <span className="flex items-center gap-1">
+              <span>↕️ ↔️ संपूर्ण पावती पाहण्यासाठी वर-खाली व डावीकडे-उजवीकडे स्क्रोल करा</span>
+            </span>
+            <span className="text-[10px] bg-[#800020] text-white px-2 py-0.5 rounded-full font-bold shrink-0">
+              स्क्रोल करा
+            </span>
+          </div>
+
+          {/* 1. OFFICIAL TEMPLATE VIEW - FULLY SCROLLABLE CANVAS CONTAINER */}
+          <div className="w-full max-w-[840px] overflow-auto max-h-[52vh] sm:max-h-[58vh] rounded-2xl border-2 border-slate-300 bg-slate-200/50 p-2 shadow-inner">
+            <div className="printable-receipt-container min-w-[620px] sm:min-w-0 w-full max-w-[820px] mx-auto shadow-xl rounded-xl overflow-hidden bg-white border border-slate-300">
+              <canvas
+                ref={previewCanvasRef}
+                width={1000}
+                height={646}
+                className="w-full h-auto block select-none bg-amber-50/50"
+                style={{ aspectRatio: '1000 / 646' }}
+              />
+            </div>
           </div>
 
           {/* Hidden Image to Preload Template for Canvas */}
@@ -580,17 +595,6 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
                 </>
               )}
             </button>
-          </div>
-
-          {/* Quick Guidance Tip */}
-          <div className="bg-amber-50/90 border border-amber-200/90 rounded-xl p-2.5 text-[11px] text-slate-700 leading-relaxed">
-            <div className="font-bold text-[#4A000B] flex items-center gap-1 mb-0.5">
-              <span>💡 WhatsApp वर इमेज कशी पाठवावी?</span>
-            </div>
-            <p className="text-slate-600">
-              • <strong>पर्याय १ (थेट नंबरवर):</strong> चॅट थेट नंबरवर उघडते. पावती इमेज गॅलरीत डाऊनलोड होते व क्लिपबोर्डवर कॉपी होते (चॅटमध्ये फक्त <strong>Paste / गॅलरीतून निवडा</strong>). मेसेजमध्ये डिजिटल पावतीची अधिकृत लिंकही असते.<br/>
-              • <strong>पर्याय २ (इमेज फोटो):</strong> पावतीची मूळ रंगीत फोटो फाईल थेट WhatsApp द्वारे पाठवण्यासाठी हे वापरा.
-            </p>
           </div>
 
           {/* Secondary Action Buttons Grid: SMS, Print, Download */}

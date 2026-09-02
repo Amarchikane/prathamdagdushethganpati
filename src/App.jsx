@@ -12,6 +12,7 @@ import { AppDownloadFooter } from './components/AppDownloadFooter';
 import { LoginPage } from './components/LoginPage';
 import { PavthiPage } from './components/PavthiPage';
 import { SuperAdminPage } from './components/SuperAdminPage';
+import { PublicReceiptView } from './components/PublicReceiptView';
 import { TRANSLATIONS } from './i18n/translations';
 import { SearchX, ChevronDown, PlusCircle, ShieldCheck, ArrowLeft, KeyRound, User, Lock, RotateCcw, AlertTriangle } from 'lucide-react';
 import { GanpatiLogo } from './components/GanpatiLogo';
@@ -139,12 +140,36 @@ export function App() {
     setActiveTab('register');
   };
 
+  // Dedicated Secure Public Receipt View Check
+  const [publicReceiptParams] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const receipt = params.get('receipt');
+    const key = params.get('key');
+    if (receipt && key) {
+      return { receipt, key };
+    }
+    return null;
+  });
+
   const isFiltered = query.trim().length > 0 || selectedLandmark !== 'ALL';
   const displayedResults = results.slice(0, visibleCount);
   const hasMore = visibleCount < results.length;
 
   if (isLoading) {
     return <SplashScreen onFinish={() => setIsLoading(false)} lang={lang} />;
+  }
+
+  // If visiting via a verified public receipt link, render ONLY the dedicated receipt viewer
+  if (publicReceiptParams) {
+    return (
+      <ErrorBoundary>
+        <PublicReceiptView 
+          receiptNo={publicReceiptParams.receipt} 
+          accessKey={publicReceiptParams.key} 
+        />
+      </ErrorBoundary>
+    );
   }
 
   return (

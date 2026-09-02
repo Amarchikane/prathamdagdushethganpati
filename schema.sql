@@ -4,6 +4,7 @@
 CREATE TABLE IF NOT EXISTS pavthi_entries (
   id TEXT PRIMARY KEY,
   receipt_no TEXT UNIQUE NOT NULL,
+  access_token TEXT UNIQUE,
   date TEXT NOT NULL,
   name_mr TEXT NOT NULL,
   name_en TEXT,

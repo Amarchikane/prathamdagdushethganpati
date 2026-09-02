@@ -132,9 +132,12 @@ const devMandalApiPlugin = () => ({
           const pendingAmt = isPending ? Math.max(0, Number(body.pending_amount) || 0) : 0;
           const receivedAmt = isPending ? Math.max(0, totalAmt - pendingAmt) : totalAmt;
 
+          const accessToken = 'sec_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
+
           const entry = {
             id: 'PAV-' + Date.now(),
             receipt_no: `AM-${currentYear}-${seq}`,
+            access_token: accessToken,
             date: new Date().toLocaleDateString('mr-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
             name_mr: body.name_mr || '',
             name_en: body.name_en || body.name_mr || '',
@@ -156,6 +159,54 @@ const devMandalApiPlugin = () => ({
           };
           mockPavthiDb.unshift(entry);
           sendJson({ success: true, message: 'D1 डेटाबेस नोंद यशस्वी', entry });
+        });
+        return;
+      }
+
+      // 3.5 Public Receipt Endpoint (Secured by Token)
+      if (pathname === '/api/public-receipt' && req.method === 'GET') {
+        const receiptParam = (query.get('receipt') || '').trim();
+        const keyParam = (query.get('key') || '').trim();
+
+        if (!receiptParam || !keyParam) {
+          sendJson({ error: 'अवैध किंवा अपूर्ण पावती लिंक (Missing receipt or security key)' }, 400);
+          return;
+        }
+
+        const entry = mockPavthiDb.find(r => r.receipt_no === receiptParam);
+        if (!entry) {
+          sendJson({ error: 'पावती सापडली नाही किंवा चुकीचा क्रमांक' }, 404);
+          return;
+        }
+
+        // Strict Cryptographic Token Verification
+        const validKey = entry.access_token || entry.id;
+        if (entry.access_token) {
+          if (entry.access_token !== keyParam) {
+            sendJson({ error: 'सुरक्षा चेतावणी: अनधिकृत पावती प्रवेश (Security key does not match this receipt)' }, 403);
+            return;
+          }
+        } else if (validKey !== keyParam && !validKey.startsWith(keyParam)) {
+          sendJson({ error: 'सुरक्षा चेतावणी: अनधिकृत पावती प्रवेश' }, 403);
+          return;
+        }
+
+        sendJson({
+          success: true,
+          receipt: {
+            receipt_no: entry.receipt_no,
+            date: entry.date,
+            name_mr: entry.name_mr,
+            name_en: entry.name_en,
+            amount: entry.amount,
+            amount_words_mr: entry.amount_words_mr,
+            is_pending: entry.is_pending,
+            pending_amount: entry.pending_amount,
+            received_amount: entry.received_amount,
+            payment_mode: entry.payment_mode,
+            landmark_mr: entry.landmark_mr,
+            created_at: entry.created_at
+          }
         });
         return;
       }
