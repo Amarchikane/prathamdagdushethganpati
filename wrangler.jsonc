@@ -10,12 +10,15 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "prathamdagdusheth_db",
-      "database_id": "xxxx-placeholder-run-wrangler-d1-create"
-    }
-  ]
+  }
+  // Once you create your Cloudflare D1 database using:
+  // npx wrangler d1 create prathamdagdusheth_db
+  // Uncomment the block below and paste your real database_id:
+  // "d1_databases": [
+  //   {
+  //     "binding": "DB",
+  //     "database_name": "prathamdagdusheth_db",
+  //     "database_id": "<your-real-d1-uuid-here>"
+  //   }
+  // ]
 }
