@@ -49,6 +49,25 @@ export function SuperAdminPage({ lang, user, onLogout }) {
   // Action status messages
   const [msg, setMsg] = useState({ type: '', text: '' });
 
+  // Fallback admins so the admin panel is NEVER blank even if DB is brand new
+  const displayAdmins = statsData.by_admin && statsData.by_admin.length > 0
+    ? statsData.by_admin
+    : (statsData.users && statsData.users.length > 0
+        ? statsData.users.map(u => ({
+            username: u.username,
+            name: u.name,
+            role: u.role,
+            receipt_count: 0,
+            total_amount: 0,
+            received_amount: 0,
+            pending_amount: 0
+          }))
+        : [
+            { username: 'superadmin', name: 'मुख्य प्रशासक (Super Admin)', role: 'superadmin', receipt_count: 0, total_amount: 0, received_amount: 0, pending_amount: 0 },
+            { username: 'admin', name: 'मंडळ प्रशासक (Admin)', role: 'admin', receipt_count: 0, total_amount: 0, received_amount: 0, pending_amount: 0 },
+            { username: 'karyakarta', name: 'मंडळ कार्यकर्ता (Karyakarta)', role: 'karyakarta', receipt_count: 0, total_amount: 0, received_amount: 0, pending_amount: 0 }
+          ]);
+
   const loadAllData = async () => {
     setLoading(true);
     setMsg({ type: '', text: '' });
@@ -319,7 +338,7 @@ export function SuperAdminPage({ lang, user, onLogout }) {
             {statsData.stats.total_receipts}
           </div>
           <div className="text-[11px] font-semibold text-slate-500 mt-1">
-            {statsData.by_admin.length} कार्यकर्त्यांनी नोंदवलेल्या
+            {displayAdmins.length} कार्यकर्त्यांची खाती
           </div>
         </div>
       </div>
@@ -335,7 +354,7 @@ export function SuperAdminPage({ lang, user, onLogout }) {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>कार्यकर्ते / ॲडमिन संकलन ({statsData.by_admin.length})</span>
+          <span>कार्यकर्ते / ॲडमिन संकलन ({displayAdmins.length})</span>
         </button>
 
         <button
@@ -401,7 +420,7 @@ export function SuperAdminPage({ lang, user, onLogout }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {statsData.by_admin.map((admin) => (
+                  {displayAdmins.map((admin) => (
                     <tr key={admin.username} className="hover:bg-amber-50/50 transition">
                       <td className="py-3 px-4 font-extrabold text-slate-900">
                         {admin.name}

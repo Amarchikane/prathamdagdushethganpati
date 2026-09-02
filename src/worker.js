@@ -243,7 +243,23 @@ export default {
       // 4. Super Admin Stats (Overview, By Admin, Daily Collection)
       if (url.pathname === '/api/superadmin/stats' && request.method === 'GET') {
         try {
+          const defaultAdmins = [
+            { id: 'usr_super', username: 'superadmin', name: 'मुख्य प्रशासक (Super Admin)', role: 'superadmin', created_at: new Date().toISOString() },
+            { id: 'usr_01', username: 'admin', name: 'मंडळ प्रशासक (Admin)', role: 'admin', created_at: new Date().toISOString() },
+            { id: 'usr_02', username: 'karyakarta', name: 'मंडळ कार्यकर्ता (Karyakarta)', role: 'karyakarta', created_at: new Date().toISOString() }
+          ];
+
           if (!env || !env.DB) {
+            const fallbackByAdmin = defaultAdmins.map(u => ({
+              username: u.username,
+              name: u.name,
+              role: u.role,
+              receipt_count: 0,
+              total_amount: 0,
+              received_amount: 0,
+              pending_amount: 0
+            }));
+
             return jsonResponse({
               success: true,
               stats: {
@@ -252,59 +268,118 @@ export default {
                 total_received: 0,
                 total_pending: 0
               },
-              by_admin: [],
+              by_admin: fallbackByAdmin,
               daily_collections: [],
-              users: []
+              users: defaultAdmins
             });
           }
 
-          // Overall totals
-          const totals = await env.DB.prepare(`
-            SELECT 
-              COUNT(*) as total_receipts,
-              COALESCE(SUM(amount), 0) as total_amount,
-              COALESCE(SUM(received_amount), 0) as total_received,
-              COALESCE(SUM(pending_amount), 0) as total_pending
-            FROM pavthi_entries
-          `).first();
+          // Fetch all registered users
+          let usersList = [];
+          try {
+            const { results } = await env.DB.prepare(
+              'SELECT id, username, name, role, created_at FROM users ORDER BY created_at ASC'
+            ).all();
+            usersList = results || [];
+          } catch (uErr) {
+            console.error('Users fetch error:', uErr);
+          }
 
-          // Breakdown by Admin / Karyakarta
-          const { results: byAdmin } = await env.DB.prepare(`
-            SELECT 
-              COALESCE(created_by_username, 'karyakarta') as username,
-              COALESCE(created_by, 'कार्यकर्ता') as name,
-              COUNT(*) as receipt_count,
-              COALESCE(SUM(amount), 0) as total_amount,
-              COALESCE(SUM(received_amount), 0) as received_amount,
-              COALESCE(SUM(pending_amount), 0) as pending_amount
-            FROM pavthi_entries
-            GROUP BY COALESCE(created_by_username, 'karyakarta')
-            ORDER BY total_amount DESC
-          `).all();
+          if (usersList.length === 0) {
+            usersList = defaultAdmins;
+          }
+
+          // Initialize byAdmin map for every user so all admins are always visible
+          const adminMap = new Map();
+          usersList.forEach(u => {
+            adminMap.set(u.username.toLowerCase(), {
+              username: u.username,
+              name: u.name,
+              role: u.role || 'karyakarta',
+              receipt_count: 0,
+              total_amount: 0,
+              received_amount: 0,
+              pending_amount: 0
+            });
+          });
+
+          // Overall totals
+          let totals = { total_receipts: 0, total_amount: 0, total_received: 0, total_pending: 0 };
+          try {
+            const res = await env.DB.prepare(`
+              SELECT 
+                COUNT(*) as total_receipts,
+                COALESCE(SUM(amount), 0) as total_amount,
+                COALESCE(SUM(received_amount), 0) as total_received,
+                COALESCE(SUM(pending_amount), 0) as total_pending
+              FROM pavthi_entries
+            `).first();
+            if (res) totals = res;
+          } catch (tErr) {
+            console.error('Totals error:', tErr);
+          }
+
+          // Aggregate per-admin from pavthi_entries
+          try {
+            const { results: agg } = await env.DB.prepare(`
+              SELECT 
+                LOWER(COALESCE(created_by_username, 'karyakarta')) as username,
+                COALESCE(created_by, 'कार्यकर्ता') as name,
+                COUNT(*) as receipt_count,
+                COALESCE(SUM(amount), 0) as total_amount,
+                COALESCE(SUM(received_amount), 0) as received_amount,
+                COALESCE(SUM(pending_amount), 0) as pending_amount
+              FROM pavthi_entries
+              GROUP BY LOWER(COALESCE(created_by_username, 'karyakarta'))
+            `).all();
+
+            if (agg) {
+              agg.forEach(a => {
+                const u = a.username.toLowerCase();
+                const existing = adminMap.get(u) || {
+                  username: u,
+                  name: a.name || u,
+                  role: 'karyakarta',
+                  receipt_count: 0,
+                  total_amount: 0,
+                  received_amount: 0,
+                  pending_amount: 0
+                };
+                existing.receipt_count = a.receipt_count || 0;
+                existing.total_amount = a.total_amount || 0;
+                existing.received_amount = a.received_amount || 0;
+                existing.pending_amount = a.pending_amount || 0;
+                adminMap.set(u, existing);
+              });
+            }
+          } catch (aErr) {
+            console.error('Admin agg error:', aErr);
+          }
 
           // Daily collection totals
-          const { results: daily } = await env.DB.prepare(`
-            SELECT 
-              date,
-              COUNT(*) as receipt_count,
-              COALESCE(SUM(amount), 0) as total_amount,
-              COALESCE(SUM(received_amount), 0) as received_amount,
-              COALESCE(SUM(pending_amount), 0) as pending_amount
-            FROM pavthi_entries
-            GROUP BY date
-            ORDER BY created_at DESC
-            LIMIT 30
-          `).all();
-
-          // List all users
-          const { results: usersList } = await env.DB.prepare(`
-            SELECT id, username, name, role, created_at FROM users ORDER BY created_at DESC
-          `).all();
+          let daily = [];
+          try {
+            const { results: dailyRes } = await env.DB.prepare(`
+              SELECT 
+                date,
+                COUNT(*) as receipt_count,
+                COALESCE(SUM(amount), 0) as total_amount,
+                COALESCE(SUM(received_amount), 0) as received_amount,
+                COALESCE(SUM(pending_amount), 0) as pending_amount
+              FROM pavthi_entries
+              GROUP BY date
+              ORDER BY created_at DESC
+              LIMIT 30
+            `).all();
+            daily = dailyRes || [];
+          } catch (dErr) {
+            console.error('Daily agg error:', dErr);
+          }
 
           return jsonResponse({
             success: true,
             stats: totals || {},
-            by_admin: byAdmin || [],
+            by_admin: Array.from(adminMap.values()),
             daily_collections: daily || [],
             users: usersList || []
           });
