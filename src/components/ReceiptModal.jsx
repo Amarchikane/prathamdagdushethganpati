@@ -118,21 +118,21 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
       ctx.fillStyle = '#1E293B';
       ctx.fillText(dateMarathi, 862, 358);
 
-      // 4. श्री./सौ. (Name of Donor) - BELOW THE LINE at y=412
+      // 4. श्री./सौ. (Name of Donor) - Exactly matching reference image
       ctx.font = 'bold 21px "Mukta", sans-serif';
       ctx.fillStyle = '#0F172A';
-      ctx.fillText(donorName, 545, 434);
+      ctx.fillText(donorName, 545, 421);
 
-      // 5. यांसकडून अक्षरी रुपये (Amount in Words) - BELOW THE LINE at y=452
+      // 5. यांसकडून अक्षरी रुपये (Amount in Words) - Exactly matching reference image
       ctx.font = 'bold 19px "Mukta", sans-serif';
       ctx.fillStyle = '#0F172A';
-      ctx.fillText(amountWords, 642, 474);
+      ctx.fillText(amountWords, 642, 461);
 
-      // 6. Fourth line (Pending info or note) - BELOW line at y=496
+      // 6. Fourth line (Pending info or note) - Top line overlaps printed line at y=496
       if (isPending) {
         ctx.font = 'bold 16px "Mukta", sans-serif';
         ctx.fillStyle = '#9F1239';
-        ctx.fillText(`⚠️ बाकी शिल्लक रक्कम: रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)`, 465, 518);
+        ctx.fillText(`⚠️ बाकी शिल्लक रक्कम: रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)`, 465, 506);
       }
 
       // 7. रु. (Amount in Numbers inside the white rectangular box)
@@ -396,29 +396,29 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
                 {dateMarathi}
               </div>
 
-              {/* OVERLAY FIELD 3: श्री./सौ. (Name of Donor) - BELOW THE LINE */}
+              {/* OVERLAY FIELD 3: श्री./सौ. (Name of Donor) - ON THE LINE */}
               <div 
-                style={{ left: '54.5%', top: '64.5%' }}
-                className="absolute font-black text-slate-900 text-[14px] sm:text-[19px] md:text-[22px] whitespace-nowrap truncate max-w-[42%]"
+                style={{ left: '54.5%', top: '62.8%' }}
+                className="absolute font-black text-slate-900 text-[14px] sm:text-[19px] md:text-[22px] leading-none whitespace-nowrap overflow-visible max-w-[42%]"
                 title={donorName}
               >
                 {donorName}
               </div>
 
-              {/* OVERLAY FIELD 4: यांसकडून अक्षरी रुपये (Amount in Words) - BELOW THE LINE */}
+              {/* OVERLAY FIELD 4: यांसकडून अक्षरी रुपये (Amount in Words) - ON THE LINE */}
               <div 
-                style={{ left: '64.2%', top: '70.8%' }}
-                className="absolute font-bold text-slate-900 text-[12px] sm:text-[16px] md:text-[19px] whitespace-nowrap truncate max-w-[33%]"
+                style={{ left: '64.2%', top: '69.2%' }}
+                className="absolute font-bold text-slate-900 text-[12px] sm:text-[16px] md:text-[19px] leading-none whitespace-nowrap overflow-visible max-w-[33%]"
                 title={amountWords}
               >
                 {amountWords}
               </div>
 
-              {/* OVERLAY FIELD 5: Fourth Line (Pending Info) - BELOW LINE */}
+              {/* OVERLAY FIELD 5: Fourth Line (Pending Info) - ON THE LINE */}
               {isPending && (
                 <div 
-                  style={{ left: '46.5%', top: '77.2%' }}
-                  className="absolute font-black text-rose-800 text-[11px] sm:text-[14px] md:text-[16px] whitespace-nowrap"
+                  style={{ left: '46.5%', top: '76.4%' }}
+                  className="absolute font-black text-rose-800 text-[11px] sm:text-[14px] md:text-[16px] leading-none whitespace-nowrap overflow-visible"
                 >
                   ⚠️ बाकी: रु. {pendingDigitsMarathi}/- (एकूण: रु. {totalDigitsMarathi}/-)
                 </div>
