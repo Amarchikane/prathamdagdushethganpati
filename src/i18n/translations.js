@@ -1,6 +1,6 @@
 export const TRANSLATIONS = {
   mr: {
-    org_title: "🌺|| श्रीमंत दगडूशेठ हलवाई प्रथम गणपती ||🌺",
+    org_title: "अकरा मारुती चौक\nसार्वजनिक गणेश उत्सव मित्र मंडळ",
     mandal_name: "अकरा मारुती चौक सार्वजनिक गणेश उत्सव मित्र मंडळ, शुक्रवार पेठ पुणे.",
     search_placeholder: "नाव (इंग्रजी/मराठी), पावती क्र. किंवा परिसर शोधा... (उदा: amar, साळुंके)",
     disclaimer: "टीप: सदर माहिती मागील वर्षाच्या नोंदवहीनुसार आहे. काही तफावत आढळल्यास मूळ पावती पुस्तक तपासावे.",
@@ -44,7 +44,7 @@ export const TRANSLATIONS = {
     showing_count: "एकूण {total} पैकी {shown} नोंदी"
   },
   en: {
-    org_title: "🌺|| Shrimant Dagdusheth Halwai Pratham Ganpati ||🌺",
+    org_title: "Akara Maruti Chowk\nSarvajanik Ganesh Utsav Mitra Mandal",
     mandal_name: "Akara Maruti Chowk Sarvajanik Ganesh Utsav Mitra Mandal, Shukrawar Peth Pune.",
     search_placeholder: "Search name (English/Marathi), receipt ref or area... (e.g. amar, salunke)",
     disclaimer: "Note: Data sourced from last year's register. In case of discrepancy, verify physical receipt book.",

@@ -38,9 +38,9 @@ export function Header({ lang, setLang, isOnline }) {
         {/* Logo */}
         <GanpatiLogo className="w-12 h-12 sm:w-14 sm:h-14 shrink-0" />
 
-        {/* Full Title (unrestricted width, fully readable on all devices) */}
-        <div className="min-w-0 flex-1">
-          <h1 className="text-sm sm:text-lg md:text-xl font-black tracking-tight text-[#4A000B] leading-snug font-serif whitespace-normal">
+        {/* Full Title (centered) */}
+        <div className="min-w-0 flex-1 text-center">
+          <h1 className="text-center text-sm sm:text-lg md:text-xl font-black tracking-tight text-[#4A000B] leading-snug font-serif whitespace-pre-line">
             {t.org_title}
           </h1>
         </div>

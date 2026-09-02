@@ -1,8 +1,11 @@
-﻿const CACHE_NAME = 'mandal-records-v3';
+const CACHE_NAME = 'mandal-records-v4';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/manifest.json',
-  '/ganpati-logo.jpg'
+  '/ganpati-logo.jpg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png'
 ];
 
 // Install: Activate immediately without waiting
