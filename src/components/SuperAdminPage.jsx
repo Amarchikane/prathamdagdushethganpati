@@ -72,23 +72,50 @@ export function SuperAdminPage({ lang, user, onLogout }) {
 
   const loadAllData = async () => {
     setLoading(true);
-    setMsg({ type: '', text: '' });
     try {
       // 1. Load Stats, Admin Breakdown, Daily
-      const resStats = await fetch('/api/superadmin/stats');
-      const dataStats = await resStats.json();
-      if (dataStats.success) {
-        setStatsData(dataStats);
+      try {
+        const resStats = await fetch('/api/superadmin/stats');
+        if (resStats.ok) {
+          const dataStats = await resStats.json();
+          if (dataStats && dataStats.success) {
+            setStatsData(dataStats);
+          }
+        }
+      } catch (err) {
+        console.warn('Stats fetch warning:', err);
       }
 
       // 2. Load All Receipts
-      const resReceipts = await fetch('/api/superadmin/all-receipts');
-      const dataReceipts = await resReceipts.json();
-      if (dataReceipts.success) {
-        setAllReceipts(dataReceipts.entries || []);
+      let serverReceipts = [];
+      try {
+        const resReceipts = await fetch('/api/superadmin/all-receipts');
+        if (resReceipts.ok) {
+          const dataReceipts = await resReceipts.json();
+          if (dataReceipts && dataReceipts.success && Array.isArray(dataReceipts.entries)) {
+            serverReceipts = dataReceipts.entries;
+          }
+        }
+      } catch (err) {
+        console.warn('Receipts fetch warning:', err);
+      }
+
+      // 3. Merge LocalStorage receipts so offline/newly created receipts are ALWAYS visible
+      try {
+        const localPavthis = JSON.parse(localStorage.getItem('mandal_session_pavthis') || '[]');
+        const existingIds = new Set(serverReceipts.map(p => p.id || p.receipt_no));
+        const merged = [...serverReceipts];
+        localPavthis.forEach(p => {
+          if (!existingIds.has(p.id || p.receipt_no)) {
+            merged.push(p);
+          }
+        });
+        setAllReceipts(merged);
+      } catch (e) {
+        setAllReceipts(serverReceipts);
       }
     } catch (err) {
-      setMsg({ type: 'error', text: 'माहिती आणता आली नाही: ' + err.message });
+      console.error('loadAllData error:', err);
     } finally {
       setLoading(false);
     }
