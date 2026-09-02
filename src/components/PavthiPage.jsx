@@ -14,7 +14,10 @@ import {
   Languages,
   CheckSquare,
   Square,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Lock,
+  Send,
+  Calendar
 } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/translations';
 import { numberToMarathiWords } from '../utils/numberToMarathiWords';
@@ -25,6 +28,7 @@ import {
   fetchOnlineMarathiTransliteration 
 } from '../utils/transliterate';
 import { ReceiptModal } from './ReceiptModal';
+import { DailyHandoverModal } from './DailyHandoverModal';
 
 const INITIAL_FORM = {
   mobile: '',
@@ -56,6 +60,15 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   
+  // Daily Handover and Lockout State
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
+  const [handoverData, setHandoverData] = useState({
+    is_locked: false,
+    pending_days: [],
+    superadmin_whatsapp: '919822001122',
+    handovers: []
+  });
+
   const onlineTimerRef = useRef(null);
 
   const [recentEntries, setRecentEntries] = useState(() => {
@@ -93,6 +106,26 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
       })
       .catch(() => {});
   }, [isOnline]);
+
+  // Check Daily Handover Status & Past Day Lockout
+  const fetchHandoverStatus = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/daily-handover?username=${encodeURIComponent(user.username)}&_t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          setHandoverData(data);
+        }
+      }
+    } catch (err) {
+      console.warn('Daily handover check warning:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchHandoverStatus();
+  }, [user, isOnline]);
 
   // Handle donor name typing & auto-conversion
   const handleNameChange = (val) => {
@@ -156,6 +189,13 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    // STRICT LOCKOUT CHECK: If past day daily handover is pending
+    if (handoverData.is_locked) {
+      alert('⚠️ मागील दिवसाचा दैनिक हिशोब मुख्य प्रशासकाकडे (Super Admin) जमा करणे बाकी आहे! जोपर्यंत हिशोब WhatsApp वर सुपूर्द केला जात नाही, तोपर्यंत नवीन पावती करता येणार नाही.');
+      setIsHandoverModalOpen(true);
+      return;
+    }
 
     // STRICT ONLINE CHECK - user specified: "the user should be online for that"
     if (!isOnline) {
@@ -290,8 +330,28 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
           </div>
         </div>
 
-        {/* Live Online Badge & Logout Button */}
-        <div className="flex items-center gap-2">
+        {/* Live Online Badge, Daily Handover Button & Logout Button */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Daily Handover Button */}
+          <button
+            type="button"
+            onClick={() => setIsHandoverModalOpen(true)}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shadow-xs ${
+              handoverData.is_locked
+                ? 'bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white animate-pulse border border-rose-400'
+                : 'bg-amber-100/90 hover:bg-amber-200 text-[#4A000B] border border-[#D4AF37]/60'
+            }`}
+            title="मुख्य प्रशासकाकडे दैनिक हिशोब सुपूर्द करा"
+          >
+            <Send className="w-3.5 h-3.5 text-[#B45309]" />
+            <span>{lang === 'mr' ? 'दैनिक हिशोब जमा करा' : 'Daily Handover'}</span>
+            {handoverData.is_locked && (
+              <span className="text-[10px] bg-rose-950 text-white px-1.5 py-0.2 rounded-full font-bold">
+                बाकी!
+              </span>
+            )}
+          </button>
+
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
             isOnline 
               ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' 
@@ -320,6 +380,35 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
           </button>
         </div>
       </div>
+
+      {/* LOCKOUT ALERT BANNER: Displayed when previous day daily handover is pending */}
+      {handoverData.is_locked && (
+        <div className="p-4 bg-gradient-to-r from-rose-900 via-rose-950 to-[#3B070E] border-2 border-rose-400 rounded-3xl shadow-xl text-white space-y-3 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-800/80 border border-rose-300/50 flex items-center justify-center shrink-0 shadow-inner">
+                <Lock className="w-5 h-5 text-rose-200" />
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-black text-rose-100 flex items-center gap-2">
+                  <span>⚠️ मागील दिवसाचा दैनिक हिशोब जमा करणे बाकी आहे! (पावती बंद)</span>
+                </h4>
+                <p className="text-xs text-rose-200/90 font-medium mt-1 leading-relaxed">
+                  नियमानुसार, मागील दिवसाचा ({handoverData.pending_days.map(d => `दि. ${d.display_date || d.iso_date}`).join(', ')}) संकलन अहवाल मुख्य प्रशासक (Super Admin) यांच्याकडे WhatsApp वर सुपूर्द केल्याशिवाय नवीन पावती तयार करता येणार नाही.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsHandoverModalOpen(true)}
+              className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:scale-95 text-[#3B070E] text-xs font-black rounded-xl shadow-lg transition shrink-0 cursor-pointer text-center"
+            >
+              हिशोब सुपूर्द करा (Handover) →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Strict Online Warning if offline */}
       {!isOnline && (
@@ -636,15 +725,22 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
 
             <button
               type="submit"
-              disabled={loading || !isOnline}
+              disabled={loading || !isOnline || handoverData.is_locked}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-extrabold text-sm shadow-md transition cursor-pointer ${
-                !isOnline
+                handoverData.is_locked
+                  ? 'bg-rose-950 text-rose-200 cursor-not-allowed border border-rose-500 shadow-none'
+                  : !isOnline
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-[#4A000B] to-[#800020] hover:from-[#3B070E] hover:to-[#630D1A] text-white active:scale-98 border border-[#D4AF37]/50'
               }`}
             >
               {loading ? (
                 <span className="animate-spin">⏳ D1 मध्ये नोंद होत आहे...</span>
+              ) : handoverData.is_locked ? (
+                <>
+                  <Lock className="w-4 h-4 text-rose-300" />
+                  <span>🔒 पावती तयार करणे बंद (मागील दिवसाचा हिशोब जमा करा)</span>
+                </>
               ) : (
                 <>
                   <PlusCircle className="w-4 h-4 text-[#FDE68A]" />
@@ -731,6 +827,17 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
         onClose={() => setSelectedReceipt(null)}
         receipt={selectedReceipt}
         onResetNew={handleResetForm}
+        lang={lang}
+      />
+
+      {/* Daily Handover Modal */}
+      <DailyHandoverModal
+        isOpen={isHandoverModalOpen}
+        onClose={() => setIsHandoverModalOpen(false)}
+        user={user}
+        handoverData={handoverData}
+        recentEntries={recentEntries}
+        onHandoverSuccess={fetchHandoverStatus}
         lang={lang}
       />
     </div>

@@ -44,3 +44,37 @@ VALUES
   ('usr_super', 'superadmin', '9999', 'मुख्य प्रशासक (Super Admin)', 'superadmin'),
   ('usr_01', 'admin', '1124', 'मंडळ प्रशासक (Admin)', 'admin'),
   ('usr_02', 'karyakarta', '1124', 'मंडळ कार्यकर्ता (Karyakarta)', 'karyakarta');
+
+-- Mandal Configuration Settings (e.g. Super Admin WhatsApp number)
+CREATE TABLE IF NOT EXISTS mandal_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT OR IGNORE INTO mandal_settings (key, value) 
+VALUES 
+  ('superadmin_whatsapp', '919822001122'),
+  ('daily_handover_lockout_enabled', 'false');
+
+-- Daily Handover / Daily Closing Records
+CREATE TABLE IF NOT EXISTS daily_handovers (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  username TEXT NOT NULL,
+  admin_name TEXT NOT NULL,
+  total_receipts INTEGER NOT NULL,
+  total_amount INTEGER NOT NULL,
+  cash_amount INTEGER NOT NULL,
+  upi_amount INTEGER NOT NULL,
+  pending_amount INTEGER NOT NULL,
+  first_receipt_no TEXT,
+  last_receipt_no TEXT,
+  superadmin_phone TEXT NOT NULL,
+  status TEXT DEFAULT 'submitted', -- 'submitted', 'verified'
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(date, username)
+);
+
+CREATE INDEX IF NOT EXISTS idx_handovers_date ON daily_handovers(date);
+CREATE INDEX IF NOT EXISTS idx_handovers_user ON daily_handovers(username);

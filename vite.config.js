@@ -59,6 +59,13 @@ const devMandalApiPlugin = () => ({
       { id: 'usr_02', username: 'karyakarta', pin: '1124', name: 'मंडळ कार्यकर्ता (Karyakarta)', role: 'karyakarta', created_at: new Date().toISOString() }
     ];
 
+    let mockSettings = {
+      superadmin_whatsapp: '919822001122',
+      daily_handover_lockout_enabled: 'false'
+    };
+
+    let mockHandovers = [];
+
     server.middlewares.use((req, res, next) => {
       if (!req.url.startsWith('/api/')) return next();
 
@@ -304,6 +311,137 @@ const devMandalApiPlugin = () => ({
           } else {
             sendJson({ error: 'पावती सापडली नाही' }, 404);
           }
+        });
+        return;
+      }
+
+      // 10. Settings (Super Admin WhatsApp etc.)
+      if (pathname === '/api/settings' && req.method === 'GET') {
+        sendJson({ success: true, settings: mockSettings });
+        return;
+      }
+
+      if (pathname === '/api/settings' && req.method === 'POST') {
+        parseJsonBody().then(body => {
+          if (body.superadmin_whatsapp) {
+            mockSettings.superadmin_whatsapp = String(body.superadmin_whatsapp).trim();
+          }
+          if (body.daily_handover_lockout_enabled !== undefined) {
+            mockSettings.daily_handover_lockout_enabled = String(body.daily_handover_lockout_enabled).trim();
+          }
+          if (body.key && body.value !== undefined) {
+            mockSettings[body.key] = String(body.value).trim();
+          }
+          sendJson({ success: true, message: 'सेटिंग्ज यशस्वीरीत्या जतन केल्या.' });
+        });
+        return;
+      }
+
+      // 11. Daily Handover
+      if (pathname === '/api/daily-handover' && req.method === 'GET') {
+        const username = urlObj.searchParams.get('username');
+        if (!username || urlObj.searchParams.get('all') === 'true') {
+          sendJson({ success: true, handovers: mockHandovers });
+          return;
+        }
+
+        const cleanUser = username.trim().toLowerCase();
+        const userHandovers = mockHandovers.filter(h => h.username.toLowerCase() === cleanUser);
+        const completedDates = new Set(userHandovers.map(h => h.date));
+
+        // Group past receipts by date for this user
+        const pastDatesMap = {};
+        const todayStr = new Date().toLocaleDateString('mr-IN');
+
+        mockPavthiDb.forEach(p => {
+          if ((p.created_by_username || '').toLowerCase() === cleanUser) {
+            const pDate = p.date || '';
+            // Compare date or created_at
+            const isPast = pDate !== todayStr && new Date(p.created_at).getTime() < Date.now() - 43200000;
+            if (isPast) {
+              if (!pastDatesMap[pDate]) {
+                pastDatesMap[pDate] = {
+                  display_date: pDate,
+                  count: 0,
+                  total_amt: 0,
+                  cash_amt: 0,
+                  upi_amt: 0,
+                  pending_amt: 0,
+                  first_receipt: p.receipt_no,
+                  last_receipt: p.receipt_no
+                };
+              }
+              const d = pastDatesMap[pDate];
+              d.count++;
+              d.total_amt += Number(p.amount) || 0;
+              if (String(p.payment_mode || '').includes('रोख') || String(p.payment_mode || '').includes('Cash')) {
+                d.cash_amt += Number(p.received_amount) || Number(p.amount) || 0;
+              } else {
+                d.upi_amt += Number(p.received_amount) || Number(p.amount) || 0;
+              }
+              d.pending_amt += Number(p.pending_amount) || 0;
+              d.last_receipt = p.receipt_no;
+            }
+          }
+        });
+
+        const pendingDays = Object.values(pastDatesMap).filter(d => !completedDates.has(d.display_date));
+        const isLockoutEnabled = mockSettings.daily_handover_lockout_enabled === 'true';
+
+        sendJson({
+          success: true,
+          handovers: userHandovers,
+          lockout_enabled: isLockoutEnabled,
+          is_locked: isLockoutEnabled && pendingDays.length > 0,
+          pending_days: pendingDays,
+          superadmin_whatsapp: mockSettings.superadmin_whatsapp || '919822001122'
+        });
+        return;
+      }
+
+      if (pathname === '/api/daily-handover' && req.method === 'POST') {
+        parseJsonBody().then(body => {
+          const {
+            date,
+            username,
+            admin_name,
+            total_receipts,
+            total_amount,
+            cash_amount,
+            upi_amount,
+            pending_amount,
+            first_receipt_no,
+            last_receipt_no,
+            superadmin_phone
+          } = body;
+
+          const cleanUser = String(username || '').trim().toLowerCase();
+          const existingIdx = mockHandovers.findIndex(h => h.date === date && h.username.toLowerCase() === cleanUser);
+
+          const record = {
+            id: `HO-${Date.now().toString(36)}`,
+            date,
+            username: cleanUser,
+            admin_name: admin_name || cleanUser,
+            total_receipts: Number(total_receipts) || 0,
+            total_amount: Number(total_amount) || 0,
+            cash_amount: Number(cash_amount) || 0,
+            upi_amount: Number(upi_amount) || 0,
+            pending_amount: Number(pending_amount) || 0,
+            first_receipt_no: first_receipt_no || '',
+            last_receipt_no: last_receipt_no || '',
+            superadmin_phone: superadmin_phone || mockSettings.superadmin_whatsapp || '',
+            status: 'submitted',
+            created_at: new Date().toISOString()
+          };
+
+          if (existingIdx !== -1) {
+            mockHandovers[existingIdx] = record;
+          } else {
+            mockHandovers.unshift(record);
+          }
+
+          sendJson({ success: true, message: 'दैनिक हिशोब यशस्वीरीत्या मुख्य प्रशासकाकडे सुपूर्द केला गेला.' });
         });
         return;
       }

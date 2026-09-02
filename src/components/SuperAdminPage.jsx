@@ -16,7 +16,11 @@ import {
   LogOut,
   X,
   AlertCircle,
-  Pencil
+  Pencil,
+  Smartphone,
+  Send,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/translations';
 import { ReceiptModal } from './ReceiptModal';
@@ -33,11 +37,19 @@ export function SuperAdminPage({ lang, user, onLogout }) {
   });
 
   const [allReceipts, setAllReceipts] = useState([]);
-  const [activeSubTab, setActiveSubTab] = useState('admins'); // 'admins' | 'daily' | 'receipts'
+  const [activeSubTab, setActiveSubTab] = useState('admins'); // 'admins' | 'daily' | 'receipts' | 'handovers'
   const [selectedAdminFilter, setSelectedAdminFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [editingReceipt, setEditingReceipt] = useState(null);
+
+  // Super Admin WhatsApp & Daily Handovers state
+  const [superAdminWhatsapp, setSuperAdminWhatsapp] = useState('919822001122');
+  const [phoneInput, setPhoneInput] = useState('919822001122');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+  const [allHandovers, setAllHandovers] = useState([]);
+  const [isLockoutEnabled, setIsLockoutEnabled] = useState(false);
+  const [isTogglingLockout, setIsTogglingLockout] = useState(false);
 
   // Add Admin Modal state
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -110,11 +122,97 @@ export function SuperAdminPage({ lang, user, onLogout }) {
         console.warn('Receipts fetch warning:', err);
       }
 
-      // Note: Super Admin strictly reflects live D1 database (no stale local cache)
+      // 3. Load Settings (Super Admin WhatsApp & Lockout Toggle)
+      try {
+        const resSettings = await fetch(`/api/settings?_t=${timestamp}`, { cache: 'no-store' });
+        if (resSettings.ok) {
+          const dataSettings = await resSettings.json();
+          if (dataSettings && dataSettings.settings) {
+            if (dataSettings.settings.superadmin_whatsapp) {
+              setSuperAdminWhatsapp(dataSettings.settings.superadmin_whatsapp);
+              setPhoneInput(dataSettings.settings.superadmin_whatsapp);
+            }
+            setIsLockoutEnabled(dataSettings.settings.daily_handover_lockout_enabled === 'true');
+          }
+        }
+      } catch (err) {
+        console.warn('Settings fetch warning:', err);
+      }
+
+      // 4. Load All Daily Handovers
+      try {
+        const resHandovers = await fetch(`/api/daily-handover?all=true&_t=${timestamp}`, { cache: 'no-store' });
+        if (resHandovers.ok) {
+          const dataHandovers = await resHandovers.json();
+          if (dataHandovers && dataHandovers.success && Array.isArray(dataHandovers.handovers)) {
+            setAllHandovers(dataHandovers.handovers);
+          }
+        }
+      } catch (err) {
+        console.warn('Handovers fetch warning:', err);
+      }
     } catch (err) {
       console.error('loadAllData error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSavePhone = async (e) => {
+    e?.preventDefault();
+    const cleanPhone = phoneInput.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert('कृपया वैध १० अंकी मोबाईल नंबर टाका');
+      return;
+    }
+    setIsSavingPhone(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ superadmin_whatsapp: cleanPhone })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuperAdminWhatsapp(cleanPhone);
+        setMsg({ type: 'success', text: 'मुख्य प्रशासक WhatsApp नंबर यशस्वीरीत्या सेव्ह झाला!' });
+      } else {
+        setMsg({ type: 'error', text: 'नंबर सेव्ह करता आला नाही: ' + (data.error || '') });
+      }
+    } catch (err) {
+      setMsg({ type: 'error', text: 'त्रुटी: ' + err.message });
+    } finally {
+      setIsSavingPhone(false);
+      setTimeout(() => setMsg({ type: '', text: '' }), 5000);
+    }
+  };
+
+  const handleToggleLockout = async () => {
+    const nextVal = !isLockoutEnabled;
+    setIsTogglingLockout(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daily_handover_lockout_enabled: nextVal ? 'true' : 'false' })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsLockoutEnabled(nextVal);
+        setMsg({
+          type: 'success',
+          text: nextVal 
+            ? '✅ दैनिक हिशोब व पावती बंदी नियम (Lockout) सक्रिय केला गेला!'
+            : 'ℹ️ दैनिक हिशोब पावती बंदी नियम (Lockout) अक्षम (Disabled) केला गेला.'
+        });
+      } else {
+        setMsg({ type: 'error', text: 'सेटिंग सेव्ह करता आली नाही: ' + (data.error || '') });
+      }
+    } catch (err) {
+      setMsg({ type: 'error', text: 'त्रुटी: ' + err.message });
+    } finally {
+      setIsTogglingLockout(false);
+      setTimeout(() => setMsg({ type: '', text: '' }), 5000);
     }
   };
 
@@ -445,8 +543,111 @@ export function SuperAdminPage({ lang, user, onLogout }) {
         </div>
       </div>
 
+      {/* Super Admin Control Settings Card */}
+      <div className="bg-gradient-to-r from-[#200B0F] to-[#3B070E] border-2 border-[#D4AF37]/70 rounded-3xl p-4 sm:p-5 shadow-lg text-white space-y-4">
+        {/* Row 1: WhatsApp Number */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400 shrink-0">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm sm:text-base text-amber-100 flex items-center gap-2">
+                <span>मुख्य प्रशासक (Super Admin) WhatsApp नंबर</span>
+                <span className="text-[10px] font-bold bg-emerald-500/20 border border-emerald-400 text-emerald-300 px-2 py-0.5 rounded-full">
+                  DB सक्रिय
+                </span>
+              </h3>
+              <p className="text-xs text-amber-200/80 font-medium mt-0.5 leading-relaxed">
+                कार्यकर्ते व ॲडमिन daily closing च्या वेळी या WhatsApp नंबरवर त्यांचा दैनिक जमा अहवाल सुपूर्द करतील.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSavePhone} className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-48">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs font-mono font-bold pointer-events-none">
+                +91
+              </span>
+              <input
+                type="tel"
+                maxLength={13}
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder="९८२२००११२२"
+                className="w-full pl-11 pr-3 py-2 bg-black/40 border border-white/20 focus:border-[#D4AF37] rounded-xl text-xs sm:text-sm font-mono font-bold text-white focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isSavingPhone}
+              className="px-4 py-2 bg-gradient-to-r from-[#D4AF37] to-[#B45309] hover:from-[#C59B27] hover:to-[#92400E] active:scale-95 text-[#3B070E] font-black text-xs rounded-xl shadow transition cursor-pointer shrink-0"
+            >
+              {isSavingPhone ? 'सेव्ह होत आहे...' : 'नंबर जतन करा'}
+            </button>
+          </form>
+        </div>
+
+        {/* Row 2: Daily Handover Lockout Rule Toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border ${
+              isLockoutEnabled 
+                ? 'bg-rose-500/20 border-rose-400 text-rose-300' 
+                : 'bg-slate-700/40 border-slate-500 text-slate-400'
+            }`}>
+              {isLockoutEnabled ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm sm:text-base text-amber-100">
+                  दैनिक हिशोब सुपूर्ती व पावती बंदी नियम (Daily Handover Lockout Rule)
+                </h3>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                  isLockoutEnabled
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-400'
+                    : 'bg-slate-700/50 text-slate-300 border-slate-500'
+                }`}>
+                  {isLockoutEnabled ? 'सक्रिय (ENABLED)' : 'अक्षम (DISABLED)'}
+                </span>
+              </div>
+              <p className="text-xs text-amber-200/80 font-medium mt-0.5 leading-relaxed">
+                {isLockoutEnabled
+                  ? '⚠️ नियम सक्रिय आहे: ॲडमिनने मागील दिवसाचा हिशोब Super Admin ला WhatsApp वर सुपूर्द केल्याशिवाय नवीन पावती करता येणार नाही.'
+                  : 'ℹ️ नियम बंद आहे: मागील दिवसाचा हिशोब बाकी असला तरीही ॲडमिन नवीन पावत्या करू शकतात.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleToggleLockout}
+            disabled={isTogglingLockout}
+            className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-md shrink-0 active:scale-95 ${
+              isLockoutEnabled
+                ? 'bg-rose-600 hover:bg-rose-700 text-white border border-rose-400'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-400'
+            }`}
+          >
+            {isTogglingLockout ? (
+              <span className="animate-pulse">बदल सेव्ह होत आहे...</span>
+            ) : isLockoutEnabled ? (
+              <>
+                <Unlock className="w-3.5 h-3.5" />
+                <span>नियम बंद करा (Disable Lockout)</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-3.5 h-3.5" />
+                <span>नियम सक्रिय करा (Enable Lockout)</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Sub-Tab Navigation */}
-      <div className="bg-amber-100/60 p-1.5 rounded-2xl border border-[#D4AF37]/40 flex gap-2">
+      <div className="bg-amber-100/60 p-1.5 rounded-2xl border border-[#D4AF37]/40 flex flex-wrap gap-2">
         <button
           onClick={() => setActiveSubTab('admins')}
           className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition cursor-pointer ${
@@ -456,7 +657,7 @@ export function SuperAdminPage({ lang, user, onLogout }) {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>कार्यकर्ते / ॲडमिन संकलन ({displayAdmins.length})</span>
+          <span>कार्यकर्ते संकलन ({displayAdmins.length})</span>
         </button>
 
         <button
@@ -469,6 +670,18 @@ export function SuperAdminPage({ lang, user, onLogout }) {
         >
           <Clock className="w-4 h-4" />
           <span>दैनिक जमा अहवाल (Daily)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('handovers')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition cursor-pointer ${
+            activeSubTab === 'handovers'
+              ? 'bg-gradient-to-r from-[#4A000B] to-[#800020] text-white shadow-sm'
+              : 'text-slate-700 hover:text-[#4A000B] hover:bg-white/50'
+          }`}
+        >
+          <Send className="w-4 h-4" />
+          <span>दैनिक हिशोब सुपूर्ती ({allHandovers.length})</span>
         </button>
 
         <button
@@ -661,6 +874,108 @@ export function SuperAdminPage({ lang, user, onLogout }) {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================================================
+          SECTION: DAILY HANDOVERS AUDIT TABLE
+          ========================================================================== */}
+      {activeSubTab === 'handovers' && (
+        <div className="space-y-4 animate-fadeIn">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h2 className="text-base font-black text-[#4A000B]">
+                दैनिक हिशोब सुपूर्ती अहवाल (Daily Handover Audit)
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                कोणत्या ॲडमिनने कोणत्या तारखेचा हिशोब मुख्य प्रशासक WhatsApp वर सुपूर्द केला याचा तपशील
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                एकूण सुपूर्ती नोंदी: <strong className="text-[#800020]">{allHandovers.length}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={loadAllData}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-[#4A000B] border border-[#D4AF37]/50 rounded-xl text-xs font-bold transition cursor-pointer"
+                title="हिशोब रिफ्रेश करा"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                <span>रिफ्रेश</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E8DEC8] rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-[#FAF6ED] text-[#4A000B] border-b border-[#D4AF37]/30 font-black">
+                  <tr>
+                    <th className="py-3 px-4">तारीख (Date)</th>
+                    <th className="py-3 px-4">जमाकर्ता (Admin)</th>
+                    <th className="py-3 px-4 text-center">एकूण पावत्या</th>
+                    <th className="py-3 px-4 text-right">एकूण रक्कम</th>
+                    <th className="py-3 px-4 text-right">रोख (Cash)</th>
+                    <th className="py-3 px-4 text-right">UPI (Online)</th>
+                    <th className="py-3 px-4 text-right">बाकी (Due)</th>
+                    <th className="py-3 px-4 text-center">सुपूर्द वेळ</th>
+                    <th className="py-3 px-4 text-center">स्थिती</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {allHandovers.length > 0 ? (
+                    allHandovers.map((h) => (
+                      <tr key={h.id || h.date + h.username} className="hover:bg-amber-50/40 transition">
+                        <td className="py-3 px-4 font-extrabold text-slate-900">
+                          {h.date}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-extrabold text-[#4A000B] block">{h.admin_name}</span>
+                          <span className="text-[11px] font-mono text-slate-500">@{h.username}</span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className="font-bold text-slate-900">{h.total_receipts}</span>
+                          {h.first_receipt_no && (
+                            <span className="block text-[10px] font-mono text-slate-400">
+                              {h.first_receipt_no} - {h.last_receipt_no}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-black text-slate-900">
+                          {formatRupees(h.total_amount)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-amber-800">
+                          {formatRupees(h.cash_amount)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-sky-800">
+                          {formatRupees(h.upi_amount)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-rose-700">
+                          {formatRupees(h.pending_amount)}
+                        </td>
+                        <td className="py-3 px-4 text-center text-[11px] text-slate-500 font-medium">
+                          {h.created_at ? new Date(h.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>सुपूर्द (OK)</span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={9} className="py-8 text-center text-slate-500 font-bold italic">
+                        कोणत्याही दैनिक हिशोब सुपूर्ती नोंदी अद्याप झालेल्या नाहीत.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

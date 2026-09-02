@@ -61,6 +61,40 @@ async function ensureDbTables(db) {
         ('usr_01', 'admin', '1124', 'मंडळ प्रशासक (Admin)', 'admin'),
         ('usr_02', 'karyakarta', '1124', 'मंडळ कार्यकर्ता (Karyakarta)', 'karyakarta')
     `).run();
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS mandal_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    await db.prepare(`
+      INSERT OR IGNORE INTO mandal_settings (key, value) VALUES 
+        ('superadmin_whatsapp', '919822001122'),
+        ('daily_handover_lockout_enabled', 'false')
+    `).run();
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS daily_handovers (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        username TEXT NOT NULL,
+        admin_name TEXT NOT NULL,
+        total_receipts INTEGER NOT NULL,
+        total_amount INTEGER NOT NULL,
+        cash_amount INTEGER NOT NULL,
+        upi_amount INTEGER NOT NULL,
+        pending_amount INTEGER NOT NULL,
+        first_receipt_no TEXT,
+        last_receipt_no TEXT,
+        superadmin_phone TEXT NOT NULL,
+        status TEXT DEFAULT 'submitted',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(date, username)
+      )
+    `).run();
   } catch (e) {
     console.error('ensureDbTables initialization error:', e);
   }
@@ -645,6 +679,203 @@ export default {
           });
         } catch (e) {
           return jsonResponse({ error: 'पावती अपडेट करता आली नाही: ' + e.message }, 500);
+        }
+      }
+
+      // 10. Mandal Settings Endpoint (Get & Update Super Admin WhatsApp, etc.)
+      if (url.pathname === '/api/settings' && request.method === 'GET') {
+        try {
+          let settingsMap = { superadmin_whatsapp: '919822001122' };
+          if (env && env.DB) {
+            const { results } = await env.DB.prepare('SELECT key, value FROM mandal_settings').all();
+            if (results && Array.isArray(results)) {
+              results.forEach(row => {
+                settingsMap[row.key] = row.value;
+              });
+            }
+          }
+          return jsonResponse({ success: true, settings: settingsMap });
+        } catch (e) {
+          return jsonResponse({ error: 'सेटिंग्ज आणता आल्या नाहीत: ' + e.message }, 500);
+        }
+      }
+
+      if (url.pathname === '/api/settings' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          if (env && env.DB) {
+            if (body.superadmin_whatsapp) {
+              await env.DB.prepare(
+                'INSERT INTO mandal_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
+              ).bind('superadmin_whatsapp', String(body.superadmin_whatsapp).trim()).run();
+            }
+            if (body.daily_handover_lockout_enabled !== undefined) {
+              await env.DB.prepare(
+                'INSERT INTO mandal_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
+              ).bind('daily_handover_lockout_enabled', String(body.daily_handover_lockout_enabled).trim()).run();
+            }
+            if (body.key && body.value !== undefined) {
+              await env.DB.prepare(
+                'INSERT INTO mandal_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
+              ).bind(String(body.key).trim(), String(body.value).trim()).run();
+            }
+          }
+          return jsonResponse({ success: true, message: 'सेटिंग्ज यशस्वीरीत्या जतन केल्या.' });
+        } catch (e) {
+          return jsonResponse({ error: 'सेटिंग्ज सेव्ह करता आल्या नाहीत: ' + e.message }, 500);
+        }
+      }
+
+      // 11. Daily Handover API (Record & Check Daily Handover Status)
+      if (url.pathname === '/api/daily-handover' && request.method === 'GET') {
+        try {
+          const username = url.searchParams.get('username');
+
+          // Super Admin viewing all handovers
+          if (!username || url.searchParams.get('all') === 'true') {
+            let allHandovers = [];
+            if (env && env.DB) {
+              const { results } = await env.DB.prepare(
+                'SELECT * FROM daily_handovers ORDER BY created_at DESC LIMIT 100'
+              ).all();
+              allHandovers = results || [];
+            }
+            return jsonResponse({ success: true, handovers: allHandovers });
+          }
+
+          // Karyakarta / Admin checking status & lockouts
+          const cleanUser = username.trim().toLowerCase();
+          let userHandovers = [];
+          let pendingDays = [];
+          let superadminWhatsapp = '919822001122';
+          let isLockoutEnabled = false;
+
+          if (env && env.DB) {
+            // Get Super Admin phone & lockout toggle from settings
+            const { results: settingsRows } = await env.DB.prepare(
+              "SELECT key, value FROM mandal_settings WHERE key IN ('superadmin_whatsapp', 'daily_handover_lockout_enabled')"
+            ).all();
+
+            if (settingsRows && Array.isArray(settingsRows)) {
+              settingsRows.forEach(row => {
+                if (row.key === 'superadmin_whatsapp' && row.value) superadminWhatsapp = row.value;
+                if (row.key === 'daily_handover_lockout_enabled') isLockoutEnabled = (row.value === 'true');
+              });
+            }
+
+            // Get user's completed handovers
+            const { results: handovers } = await env.DB.prepare(
+              'SELECT * FROM daily_handovers WHERE LOWER(username) = ? ORDER BY date DESC'
+            ).bind(cleanUser).all();
+            userHandovers = handovers || [];
+
+            // Completed dates set
+            const completedDates = new Set(userHandovers.map(h => h.date));
+
+            // Find past days where this user issued receipts (IST time zone: UTC+5:30)
+            const { results: pastReceiptDays } = await env.DB.prepare(`
+              SELECT 
+                DATE(created_at, '+5 hours', '+30 minutes') as iso_date,
+                date as display_date,
+                COUNT(*) as count,
+                SUM(amount) as total_amt,
+                SUM(CASE WHEN payment_mode LIKE '%रोख%' OR payment_mode LIKE '%Cash%' THEN received_amount ELSE 0 END) as cash_amt,
+                SUM(CASE WHEN payment_mode LIKE '%UPI%' OR payment_mode LIKE '%QR%' OR payment_mode LIKE '%Online%' THEN received_amount ELSE 0 END) as upi_amt,
+                SUM(pending_amount) as pending_amt,
+                MIN(receipt_no) as first_receipt,
+                MAX(receipt_no) as last_receipt
+              FROM pavthi_entries 
+              WHERE LOWER(created_by_username) = ?
+                AND DATE(created_at, '+5 hours', '+30 minutes') < DATE('now', '+5 hours', '+30 minutes')
+              GROUP BY DATE(created_at, '+5 hours', '+30 minutes')
+            `).bind(cleanUser).all();
+
+            if (pastReceiptDays && Array.isArray(pastReceiptDays)) {
+              pastReceiptDays.forEach(day => {
+                // If this past date has not been handed over
+                if (!completedDates.has(day.display_date) && !completedDates.has(day.iso_date)) {
+                  pendingDays.push(day);
+                }
+              });
+            }
+          }
+
+          return jsonResponse({
+            success: true,
+            handovers: userHandovers,
+            lockout_enabled: isLockoutEnabled,
+            is_locked: isLockoutEnabled && pendingDays.length > 0,
+            pending_days: pendingDays,
+            superadmin_whatsapp: superadminWhatsapp
+          });
+        } catch (e) {
+          return jsonResponse({ error: 'हिशोब तपासता आला नाही: ' + e.message }, 500);
+        }
+      }
+
+      if (url.pathname === '/api/daily-handover' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const {
+            date,
+            username,
+            admin_name,
+            total_receipts,
+            total_amount,
+            cash_amount,
+            upi_amount,
+            pending_amount,
+            first_receipt_no,
+            last_receipt_no,
+            superadmin_phone
+          } = body;
+
+          if (!date || !username) {
+            return jsonResponse({ error: 'तारीख आणि कार्यकर्ता नाव आवश्यक आहे' }, 400);
+          }
+
+          const id = `HO-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+          const cleanUser = String(username).trim().toLowerCase();
+
+          if (env && env.DB) {
+            await env.DB.prepare(`
+              INSERT INTO daily_handovers (
+                id, date, username, admin_name, total_receipts, total_amount, 
+                cash_amount, upi_amount, pending_amount, first_receipt_no, 
+                last_receipt_no, superadmin_phone, status, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', CURRENT_TIMESTAMP)
+              ON CONFLICT(date, username) DO UPDATE SET
+                total_receipts = excluded.total_receipts,
+                total_amount = excluded.total_amount,
+                cash_amount = excluded.cash_amount,
+                upi_amount = excluded.upi_amount,
+                pending_amount = excluded.pending_amount,
+                first_receipt_no = excluded.first_receipt_no,
+                last_receipt_no = excluded.last_receipt_no,
+                superadmin_phone = excluded.superadmin_phone,
+                created_at = CURRENT_TIMESTAMP
+            `).bind(
+              id,
+              date,
+              cleanUser,
+              admin_name || cleanUser,
+              Number(total_receipts) || 0,
+              Number(total_amount) || 0,
+              Number(cash_amount) || 0,
+              Number(upi_amount) || 0,
+              Number(pending_amount) || 0,
+              first_receipt_no || '',
+              last_receipt_no || '',
+              superadmin_phone || ''
+            ).run();
+          }
+
+          return jsonResponse({
+            success: true,
+            message: 'दैनिक हिशोब यशस्वीरीत्या मुख्य प्रशासकाकडे सुपूर्द केला गेला.'
+          });
+        } catch (e) {
+          return jsonResponse({ error: 'हिशोब नोंदवता आला नाही: ' + e.message }, 500);
         }
       }
 
