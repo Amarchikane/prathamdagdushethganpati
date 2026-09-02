@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mandal-records-v4';
+const CACHE_NAME = 'mandal-records-v6';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/manifest.json',

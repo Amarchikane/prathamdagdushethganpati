@@ -73,9 +73,11 @@ export function SuperAdminPage({ lang, user, onLogout }) {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // 1. Load Stats, Admin Breakdown, Daily
+      const timestamp = Date.now();
+
+      // 1. Load Stats, Admin Breakdown, Daily with no-cache
       try {
-        const resStats = await fetch('/api/superadmin/stats');
+        const resStats = await fetch(`/api/superadmin/stats?_t=${timestamp}`, { cache: 'no-store' });
         if (resStats.ok) {
           const dataStats = await resStats.json();
           if (dataStats && dataStats.success) {
@@ -86,37 +88,38 @@ export function SuperAdminPage({ lang, user, onLogout }) {
         console.warn('Stats fetch warning:', err);
       }
 
-      // 2. Load All Receipts
-      let serverReceipts = [];
+      // 2. Load All Receipts directly from live Cloudflare D1
+      let serverFetched = false;
       try {
-        const resReceipts = await fetch('/api/superadmin/all-receipts');
+        const resReceipts = await fetch(`/api/superadmin/all-receipts?_t=${timestamp}`, { cache: 'no-store' });
         if (resReceipts.ok) {
           const dataReceipts = await resReceipts.json();
           if (dataReceipts && dataReceipts.success && Array.isArray(dataReceipts.entries)) {
-            serverReceipts = dataReceipts.entries;
+            serverFetched = true;
+            // D1 Database is the SINGLE SOURCE OF TRUTH:
+            setAllReceipts(dataReceipts.entries);
+
+            // Automatically purge deleted receipts from this device's local storage:
+            try {
+              localStorage.setItem('mandal_session_pavthis', JSON.stringify(dataReceipts.entries));
+              localStorage.setItem('mandal_recent_pavthis', JSON.stringify(dataReceipts.entries));
+            } catch (e) {}
           }
         }
       } catch (err) {
         console.warn('Receipts fetch warning:', err);
       }
 
-      // 3. Merge LocalStorage receipts so offline/newly created receipts are ALWAYS visible
-      try {
-        const localPavthis = JSON.parse(
-          localStorage.getItem('mandal_recent_pavthis') || 
-          localStorage.getItem('mandal_session_pavthis') || 
-          '[]'
-        );
-        const existingIds = new Set(serverReceipts.map(p => p.id || p.receipt_no));
-        const merged = [...serverReceipts];
-        localPavthis.forEach(p => {
-          if (!existingIds.has(p.id || p.receipt_no)) {
-            merged.push(p);
-          }
-        });
-        setAllReceipts(merged);
-      } catch (e) {
-        setAllReceipts(serverReceipts);
+      // 3. Fallback to LocalStorage ONLY if server was completely unreachable (offline)
+      if (!serverFetched) {
+        try {
+          const localPavthis = JSON.parse(
+            localStorage.getItem('mandal_recent_pavthis') || 
+            localStorage.getItem('mandal_session_pavthis') || 
+            '[]'
+          );
+          setAllReceipts(localPavthis);
+        } catch (e) {}
       }
     } catch (err) {
       console.error('loadAllData error:', err);
