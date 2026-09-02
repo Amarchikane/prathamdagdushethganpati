@@ -1,0 +1,28 @@
+{
+  "short_name": "11Maruti",
+  "name": "अकरा मारुती चौक गणेश उत्सव - वर्गणी नोंदवही",
+  "description": "अकरा मारुती चौक सार्वजनिक गणेश उत्सव मित्र मंडळ देणगी नोंदवही",
+  "icons": [
+    {
+      "src": "/ganpati-logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/ganpati-logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512"
+    },
+    {
+      "src": "/ganpati-logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FAF6ED",
+  "theme_color": "#3B070E",
+  "display": "standalone",
+  "orientation": "portrait"
+}

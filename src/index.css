@@ -1,0 +1,243 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Mukta', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #FFFBEB;
+    color: #1E293B;
+  }
+}
+
+/* Sunlight contrast & custom Pune festive gradient themes */
+.bg-saffron-primary {
+  background-color: #B45309;
+}
+
+.bg-saffron-gradient {
+  background: linear-gradient(135deg, #991B1B 0%, #B45309 60%, #D97706 100%);
+}
+
+.text-saffron-dark {
+  color: #78350F;
+}
+
+.border-saffron {
+  border-color: #D97706;
+}
+
+/* Custom scrollbar for mobile lists */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FEF3C7;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D97706;
+  border-radius: 9999px;
+}
+
+/* ==========================================================================
+   PP GROUP INSPIRED CINEMATIC LOADING PANEL STYLES
+   ========================================================================== */
+.loading-panel-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #2F050B 0%, #160B06 60%, #090302 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  overflow: hidden;
+  color: #FFFDF9;
+  transition: opacity 0.7s cubic-bezier(0.25, 1, 0.5, 1), transform 0.7s cubic-bezier(0.25, 1, 0.5, 1), filter 0.7s ease;
+  user-select: none;
+}
+
+.loading-panel-overlay.fade-exit-cinematic {
+  opacity: 0;
+  transform: scale(1.06);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.loading-bg-glow {
+  position: absolute;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(255, 111, 0, 0.32) 0%, rgba(212, 175, 55, 0.18) 45%, transparent 70%);
+  filter: blur(50px);
+  animation: pulseGlow 4s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(0.88); opacity: 0.5; }
+  100% { transform: scale(1.22); opacity: 1; }
+}
+
+/* Ambient Floating Particles */
+.loading-particles-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.loading-particles-layer .particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #FFD700;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #FFD700, 0 0 20px #FF6F00;
+  opacity: 0.6;
+  animation: floatParticle 6s ease-in-out infinite;
+}
+
+.loading-particles-layer .p1 { top: 18%; left: 15%; animation-delay: 0s; }
+.loading-particles-layer .p2 { top: 68%; left: 82%; animation-delay: 1.5s; }
+.loading-particles-layer .p3 { top: 78%; left: 22%; animation-delay: 3s; }
+.loading-particles-layer .p4 { top: 22%; left: 78%; animation-delay: 4.5s; }
+
+@keyframes floatParticle {
+  0% { transform: translateY(0) scale(0.8); opacity: 0.2; }
+  50% { transform: translateY(-30px) scale(1.4); opacity: 0.8; }
+  100% { transform: translateY(-60px) scale(0.6); opacity: 0; }
+}
+
+.loading-ornament {
+  position: absolute;
+  font-size: 1.8rem;
+  opacity: 0.35;
+  animation: floatOrnament 5s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.loading-ornament.top-left { top: 24px; left: 24px; }
+.loading-ornament.top-right { top: 24px; right: 24px; }
+.loading-ornament.bottom-left { bottom: 24px; left: 24px; }
+.loading-ornament.bottom-right { bottom: 24px; right: 24px; }
+
+@keyframes floatOrnament {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-10px) rotate(12deg); }
+}
+
+.loading-panel-container {
+  text-align: center;
+  max-width: 550px;
+  width: 100%;
+  padding: 0 20px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.shloka-text-small {
+  color: #FFD700;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  margin-bottom: 18px;
+  text-shadow: 0 0 14px rgba(255, 215, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.ganpati-frame-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 18px;
+}
+
+.gold-halo-glow {
+  position: absolute;
+  inset: -14px;
+  border-radius: 28px;
+  background: radial-gradient(circle, rgba(255, 111, 0, 0.7) 0%, rgba(212, 175, 55, 0.5) 60%, transparent 80%);
+  filter: blur(16px);
+  animation: auraGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes auraGlow {
+  0% { opacity: 0.6; transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1.05); }
+}
+
+.ganpati-img-card {
+  position: relative;
+  width: 280px;
+  height: 200px;
+  max-width: 80vw;
+  border-radius: 20px;
+  border: 3.5px solid #FFD700;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.9), 0 0 24px rgba(212, 175, 55, 0.5);
+  overflow: hidden;
+  background-color: #1a0808;
+}
+
+.ganpati-splash-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  animation: kenBurns 4s ease-out forwards;
+}
+
+@keyframes kenBurns {
+  0% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.loading-progress-bar-wrap {
+  width: 240px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  margin: 18px auto 0;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.loading-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF6F00, #FFD700, #FFF59D);
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+  transition: width 0.15s ease-out;
+}
+
+.skip-splash-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  color: #FFD700;
+  padding: 8px 18px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.35s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skip-splash-btn:hover {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA000 100%);
+  color: #120A06;
+  font-weight: 800;
+  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.6);
+  transform: translateY(-2px);
+}

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="mr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/jpeg" href="/ganpati-logo.jpg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#3B070E" />
+    <meta name="description" content="अकरा मारुती चौक सार्वजनिक गणेश उत्सव मित्र मंडळ - offline-first register & donation lookup" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Rozha+One&family=Yatra+One&display=swap" rel="stylesheet">
+    <title>अकरा मारुती चौक गणेश उत्सव | मागील नोंदवही</title>
+  </head>
+  <body class="bg-amber-50 text-slate-900 min-h-screen font-sans antialiased selection:bg-amber-300 selection:text-slate-900">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW Registered:', reg.scope))
+            .catch(err => console.log('SW Registration failed:', err));
+        });
+      }
+    </script>
+  </body>
+</html>
