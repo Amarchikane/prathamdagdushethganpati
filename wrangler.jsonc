@@ -1,12 +1,21 @@
-﻿{
+{
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "prathamdagdushethganpati",
+  "main": "./src/worker.js",
   "compatibility_date": "2026-09-02",
   "observability": {
     "enabled": true
   },
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "prathamdagdusheth_db",
+      "database_id": "xxxx-placeholder-run-wrangler-d1-create"
+    }
+  ]
 }

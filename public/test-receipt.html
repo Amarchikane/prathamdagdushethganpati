@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Receipt Preview Test</title>
+  <style>
+    body { background: #333; display: flex; justify-content: center; padding: 20px; font-family: 'Mukta', sans-serif; }
+    .receipt-wrapper {
+      position: relative;
+      width: 1000px;
+      height: 646px;
+      background-image: url('receipt-template.jpg');
+      background-size: cover;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .field {
+      position: absolute;
+      color: #1a1a2e;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    /* Calibration positions */
+    .receipt-no { left: 535px; top: 337px; font-size: 19px; color: #4A000B; font-weight: 800; }
+    .date { left: 865px; top: 337px; font-size: 18px; color: #1E293B; }
+    .donor-name { left: 538px; top: 412px; font-size: 21px; color: #0F172A; font-weight: 800; }
+    .amount-words { left: 632px; top: 472px; font-size: 18px; color: #0F172A; }
+    .extra-note { left: 455px; top: 532px; font-size: 17px; color: #800020; font-weight: 800; }
+    .amount-box { left: 504px; top: 578px; width: 133px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: #800020; }
+  </style>
+</head>
+<body>
+  <div class="receipt-wrapper">
+    <div class="field receipt-no">१०१ (AM-2024-0101)</div>
+    <div class="field date">०२/०९/२०२६</div>
+    <div class="field donor-name">श्री. अमर शांताराम चिकणे</div>
+    <div class="field amount-words">एक हजार एक रुपये मात्र</div>
+    <div class="field extra-note">रोख मिळाले • वर्गणी</div>
+    <div class="field amount-box">१००१/-</div>
+  </div>
+</body>
+</html>

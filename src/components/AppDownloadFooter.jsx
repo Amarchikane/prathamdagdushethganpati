@@ -51,12 +51,12 @@ export function AppDownloadFooter({ lang, t }) {
 
             <h3 className="text-base sm:text-lg font-bold text-[#FFFDF9] mb-1.5 flex items-center justify-center gap-2">
               <Smartphone className="w-5 h-5 text-[#FDE68A]" />
-              {lang === 'mr' ? 'मोबाईल अॅप इन्स्टॉल करा' : 'Install Mobile App'}
+              {lang === 'mr' ? 'मोबाईल ॲप इन्स्टॉल करा' : 'Install Mobile App'}
             </h3>
 
             <p className="text-xs text-amber-100/75 max-w-md mx-auto mb-4 leading-relaxed">
               {lang === 'mr' 
-                ? 'हे अॅप आपल्या मोबाईलवर इन्स्टॉल करा आणि इंटरनेट नसतानाही सर्व वर्गणी नोंदी झटपट शोधा.'
+                ? 'हे ॲप आपल्या मोबाईलवर इन्स्टॉल करा आणि इंटरनेट नसतानाही सर्व वर्गणी नोंदी झटपट शोधा.'
                 : 'Install this app on your phone for instant, offline access to all contribution records.'}
             </p>
 
@@ -69,7 +69,7 @@ export function AppDownloadFooter({ lang, t }) {
               >
                 <Download className="w-5 h-5 text-[#1C0D10] shrink-0 stroke-[2.5] animate-bounce" />
                 <span className="font-extrabold tracking-wide text-slate-950">
-                  {lang === 'mr' ? 'Android (अँड्रॉइड) अॅप डाउनलोड' : 'Download Android App (APK)'}
+                  {lang === 'mr' ? 'Android ॲप डाउनलोड करा (APK)' : 'Download Android App (APK)'}
                 </span>
               </a>
 
@@ -128,7 +128,7 @@ export function AppDownloadFooter({ lang, t }) {
                 <Smartphone className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-black text-[#4A000B]">
-                {lang === 'mr' ? 'आयफोनवर (iPhone) अॅप कसे जोडावे?' : 'How to install on iPhone / iPad?'}
+                {lang === 'mr' ? 'आयफोनवर (iPhone) ॲप कसे जोडावे?' : 'How to install on iPhone / iPad?'}
               </h3>
               <p className="text-xs text-slate-600 mt-1">
                 {lang === 'mr' 
@@ -195,7 +195,7 @@ export function AppDownloadFooter({ lang, t }) {
               <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
               <div className="text-[11px] leading-tight">
                 {lang === 'mr' 
-                  ? 'अभिनंदन! आता तुमच्या आयफोनच्या होम स्क्रीनवर गणपती बाप्पाच्या लोगोचे अॅप तयार झाले असून ते पूर्ण स्क्रीन व ऑफलाइन चालेल.'
+                  ? 'अभिनंदन! आता तुमच्या आयफोनच्या होम स्क्रीनवर गणपती बाप्पाच्या लोगोचे ॲप तयार झाले असून ते पूर्ण स्क्रीन व ऑफलाइन चालेल.'
                   : 'Done! The app with the Ganpati logo will now be on your iPhone screen and works offline full-screen.'}
               </div>
             </div>

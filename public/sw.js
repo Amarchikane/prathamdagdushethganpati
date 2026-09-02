@@ -3,6 +3,8 @@ const ASSETS_TO_PRECACHE = [
   '/',
   '/manifest.json',
   '/ganpati-logo.jpg',
+  '/receipt-template.jpg',
+  '/113155.jpg',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-512.png'
@@ -45,6 +47,7 @@ self.addEventListener('activate', (event) => {
 // Fetch: Safe Network-first for navigation, stale-while-revalidate for static assets
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  if (event.request.url.includes('/api/')) return; // Always bypass SW for backend/D1 APIs
 
   // Navigation requests (loading/refreshing pages)
   if (event.request.mode === 'navigate') {
