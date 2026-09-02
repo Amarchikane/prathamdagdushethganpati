@@ -15,6 +15,56 @@ function jsonResponse(data, status = 200) {
   });
 }
 
+async function ensureDbTables(db) {
+  if (!db) return;
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS pavthi_entries (
+        id TEXT PRIMARY KEY,
+        receipt_no TEXT UNIQUE NOT NULL,
+        date TEXT NOT NULL,
+        name_mr TEXT NOT NULL,
+        name_en TEXT,
+        mobile TEXT,
+        amount INTEGER NOT NULL,
+        amount_words_mr TEXT,
+        is_pending INTEGER DEFAULT 0,
+        pending_amount INTEGER DEFAULT 0,
+        received_amount INTEGER DEFAULT 0,
+        donation_type TEXT DEFAULT 'वर्गणी (Contribution)',
+        payment_mode TEXT DEFAULT 'रोख (Cash)',
+        landmark_mr TEXT NOT NULL,
+        landmark_en TEXT,
+        book_ref TEXT,
+        note_mr TEXT,
+        created_by TEXT DEFAULT 'कार्यकर्ता (Karyakarta)',
+        created_by_username TEXT DEFAULT 'karyakarta',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        pin TEXT NOT NULL,
+        name TEXT NOT NULL,
+        role TEXT DEFAULT 'karyakarta',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    await db.prepare(`
+      INSERT OR IGNORE INTO users (id, username, pin, name, role) VALUES 
+        ('usr_super', 'superadmin', '9999', 'मुख्य प्रशासक (Super Admin)', 'superadmin'),
+        ('usr_01', 'admin', '1124', 'मंडळ प्रशासक (Admin)', 'admin'),
+        ('usr_02', 'karyakarta', '1124', 'मंडळ कार्यकर्ता (Karyakarta)', 'karyakarta')
+    `).run();
+  } catch (e) {
+    console.error('ensureDbTables initialization error:', e);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -124,11 +174,17 @@ export default {
       if (url.pathname === '/api/pavthi' && request.method === 'GET') {
         try {
           if (!env || !env.DB) {
-            return jsonResponse({ success: true, entries: [], note: 'Local D1 pending' });
+            return jsonResponse({ 
+              success: false, 
+              entries: [], 
+              error: 'Cloudflare D1 डेटाबेस जोडलेला नाही (D1 DB binding missing in wrangler.jsonc or Cloudflare Dashboard)' 
+            }, 503);
           }
 
+          await ensureDbTables(env.DB);
+
           const { results } = await env.DB.prepare(
-            'SELECT * FROM pavthi_entries ORDER BY created_at DESC LIMIT 100'
+            'SELECT * FROM pavthi_entries ORDER BY created_at DESC LIMIT 200'
           ).all();
 
           return jsonResponse({ success: true, entries: results || [] });
@@ -140,6 +196,15 @@ export default {
       // 3. New Pavthi Entry Endpoint (Saves into Cloudflare D1)
       if (url.pathname === '/api/pavthi' && request.method === 'POST') {
         try {
+          if (!env || !env.DB) {
+            return jsonResponse({
+              success: false,
+              error: 'Cloudflare D1 डेटाबेस जोडलेला नाही (D1 DB binding missing in wrangler.jsonc or Cloudflare Dashboard). कृपया D1 जोडणी तपासा.'
+            }, 503);
+          }
+
+          await ensureDbTables(env.DB);
+
           const body = await request.json();
           const {
             name_mr,
@@ -172,17 +237,13 @@ export default {
           const id = 'PAV-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
 
           let receiptNumber = '';
-          if (env && env.DB) {
-            try {
-              const countRes = await env.DB.prepare(
-                'SELECT COUNT(*) as total FROM pavthi_entries'
-              ).first();
-              const nextSeq = ((countRes?.total || 0) + 1).toString().padStart(4, '0');
-              receiptNumber = `AM-${currentYear}-${nextSeq}`;
-            } catch (err) {
-              receiptNumber = `AM-${currentYear}-${Date.now().toString().slice(-4)}`;
-            }
-          } else {
+          try {
+            const countRes = await env.DB.prepare(
+              'SELECT COUNT(*) as total FROM pavthi_entries'
+            ).first();
+            const nextSeq = ((countRes?.total || 0) + 1).toString().padStart(4, '0');
+            receiptNumber = `AM-${currentYear}-${nextSeq}`;
+          } catch (err) {
             receiptNumber = `AM-${currentYear}-${Date.now().toString().slice(-4)}`;
           }
 
@@ -215,37 +276,35 @@ export default {
             created_at: new Date().toISOString()
           };
 
-          if (env && env.DB) {
-            await env.DB.prepare(`
-              INSERT INTO pavthi_entries (
-                id, receipt_no, date, name_mr, name_en, mobile, amount, 
-                amount_words_mr, is_pending, pending_amount, received_amount,
-                donation_type, payment_mode, landmark_mr, 
-                landmark_en, book_ref, note_mr, created_by, created_by_username, created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
-              newEntry.id,
-              newEntry.receipt_no,
-              newEntry.date,
-              newEntry.name_mr,
-              newEntry.name_en,
-              newEntry.mobile,
-              newEntry.amount,
-              newEntry.amount_words_mr,
-              newEntry.is_pending,
-              newEntry.pending_amount,
-              newEntry.received_amount,
-              newEntry.donation_type,
-              newEntry.payment_mode,
-              newEntry.landmark_mr,
-              newEntry.landmark_en,
-              newEntry.book_ref,
-              newEntry.note_mr,
-              newEntry.created_by,
-              newEntry.created_by_username,
-              newEntry.created_at
-            ).run();
-          }
+          await env.DB.prepare(`
+            INSERT INTO pavthi_entries (
+              id, receipt_no, date, name_mr, name_en, mobile, amount, 
+              amount_words_mr, is_pending, pending_amount, received_amount,
+              donation_type, payment_mode, landmark_mr, 
+              landmark_en, book_ref, note_mr, created_by, created_by_username, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            newEntry.id,
+            newEntry.receipt_no,
+            newEntry.date,
+            newEntry.name_mr,
+            newEntry.name_en,
+            newEntry.mobile,
+            newEntry.amount,
+            newEntry.amount_words_mr,
+            newEntry.is_pending,
+            newEntry.pending_amount,
+            newEntry.received_amount,
+            newEntry.donation_type,
+            newEntry.payment_mode,
+            newEntry.landmark_mr,
+            newEntry.landmark_en,
+            newEntry.book_ref,
+            newEntry.note_mr,
+            newEntry.created_by,
+            newEntry.created_by_username,
+            newEntry.created_at
+          ).run();
 
           return jsonResponse({
             success: true,

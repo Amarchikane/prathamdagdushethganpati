@@ -102,7 +102,11 @@ export function SuperAdminPage({ lang, user, onLogout }) {
 
       // 3. Merge LocalStorage receipts so offline/newly created receipts are ALWAYS visible
       try {
-        const localPavthis = JSON.parse(localStorage.getItem('mandal_session_pavthis') || '[]');
+        const localPavthis = JSON.parse(
+          localStorage.getItem('mandal_recent_pavthis') || 
+          localStorage.getItem('mandal_session_pavthis') || 
+          '[]'
+        );
         const existingIds = new Set(serverReceipts.map(p => p.id || p.receipt_no));
         const merged = [...serverReceipts];
         localPavthis.forEach(p => {

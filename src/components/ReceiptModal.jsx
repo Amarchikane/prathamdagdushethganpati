@@ -8,7 +8,8 @@ import {
   RotateCcw, 
   CheckCircle2, 
   Eye,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/translations';
 import { numberToMarathiWords, toMarathiDigits } from '../utils/numberToMarathiWords';
@@ -17,6 +18,8 @@ export function ReceiptModal({ isOpen, onClose, receipt, onResetNew, lang }) {
   const t = TRANSLATIONS[lang];
   const [templateLoaded, setTemplateLoaded] = useState(false);
   const [activeView, setActiveView] = useState('template'); // 'template' | 'details'
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareNotice, setShareNotice] = useState(null);
   const templateImgRef = useRef(null);
 
   useEffect(() => {
@@ -79,13 +82,212 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
 बाप्पा आपल्या कुटुंबाला सुख, समृद्धी आणि उत्तम आरोग्य देवो!
 🌺 *॥ गणपती बाप्पा मोरया! मंगलमूर्ती मोरया! ॥* 🌺`;
 
-  // WhatsApp Share Trigger
-  const handleWhatsAppShare = () => {
-    const encoded = encodeURIComponent(shareText);
-    const url = waPhone 
-      ? `https://api.whatsapp.com/send?phone=${waPhone}&text=${encoded}`
-      : `https://api.whatsapp.com/send?text=${encoded}`;
-    window.open(url, '_blank');
+  // ==========================================================================
+  // MATHEMATICALLY PRECISE 1000x646 CANVAS IMAGE GENERATOR
+  // (Calibrated to exact pixel lines of 113155.jpg)
+  // ==========================================================================
+  const generateReceiptCanvas = async () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const width = 1000;
+    const height = 646;
+    canvas.width = width;
+    canvas.height = height;
+
+    if (document.fonts) {
+      try {
+        await document.fonts.ready;
+      } catch (_) {}
+    }
+
+    const drawOnCanvas = (img) => {
+      // 1. Draw template image background
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // 2. पावती क्र. (Receipt Number)
+      // Label ends at x: 535, baseline: y = 358
+      ctx.font = 'bold 20px "Mukta", sans-serif';
+      ctx.fillStyle = '#4A000B';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(receiptNoMarathi, 542, 358);
+
+      // 3. दि. (Date)
+      // Label ends at x: 854, baseline: y = 358
+      ctx.font = 'bold 18px "Mukta", sans-serif';
+      ctx.fillStyle = '#1E293B';
+      ctx.fillText(dateMarathi, 862, 358);
+
+      // 4. श्री./सौ. (Name of Donor) - BELOW THE LINE at y=412
+      ctx.font = 'bold 21px "Mukta", sans-serif';
+      ctx.fillStyle = '#0F172A';
+      ctx.fillText(donorName, 545, 434);
+
+      // 5. यांसकडून अक्षरी रुपये (Amount in Words) - BELOW THE LINE at y=452
+      ctx.font = 'bold 19px "Mukta", sans-serif';
+      ctx.fillStyle = '#0F172A';
+      ctx.fillText(amountWords, 642, 474);
+
+      // 6. Fourth line (Pending info or note) - BELOW line at y=496
+      if (isPending) {
+        ctx.font = 'bold 16px "Mukta", sans-serif';
+        ctx.fillStyle = '#9F1239';
+        ctx.fillText(`⚠️ बाकी शिल्लक रक्कम: रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)`, 465, 518);
+      }
+
+      // 7. रु. (Amount in Numbers inside the white rectangular box)
+      // Box coordinates: x = 504 to 634, y = 551 to 584. Center = 569, 568
+      ctx.font = '900 24px "Mukta", sans-serif';
+      ctx.fillStyle = '#800020';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${amountDigitsMarathi}/-`, 569, 568);
+    };
+
+    const domImg = templateImgRef.current;
+    if (domImg && domImg.complete && domImg.naturalWidth > 0) {
+      drawOnCanvas(domImg);
+      return canvas;
+    }
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = '/receipt-template.jpg';
+      img.onload = () => {
+        drawOnCanvas(img);
+        resolve(canvas);
+      };
+      img.onerror = () => {
+        img.src = '/113155.jpg';
+        img.onload = () => {
+          drawOnCanvas(img);
+          resolve(canvas);
+        };
+        img.onerror = () => {
+          ctx.fillStyle = '#FFF8E7';
+          ctx.fillRect(0, 0, width, height);
+          drawOnCanvas(img);
+          resolve(canvas);
+        };
+      };
+    });
+  };
+
+  const getSafeFileName = () => {
+    const safeName = (donorName || 'पावती').replace(/[/\\?%*:|"<>]/g, '').replace(/\s+/g, '_');
+    return `Pavthi_${shortNo}_${safeName}.png`;
+  };
+
+  const triggerImageDownload = (canvas) => {
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = getSafeFileName();
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // WhatsApp Share with Receipt Image & Formatted Text
+  const handleWhatsAppShare = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    setShareNotice(null);
+
+    try {
+      const canvas = await generateReceiptCanvas();
+      const fileName = getSafeFileName();
+
+      // Convert canvas to Blob
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/png');
+      });
+
+      if (!blob) {
+        throw new Error('इमेज तयार करणे अयशस्वी झाले');
+      }
+
+      let file = null;
+      try {
+        file = new File([blob], fileName, { type: 'image/png' });
+      } catch (fileErr) {
+        console.warn('File constructor error:', fileErr);
+      }
+
+      // Check for Web Share API Level 2 (native file sharing on mobile / Android PWA / iOS)
+      let sharedSuccessfully = false;
+      if (file && navigator.canShare && typeof navigator.canShare === 'function') {
+        let shareData = {
+          files: [file],
+          title: `🚩 पावती क्र. ${receiptNoMarathi} - ${donorName}`,
+          text: shareText,
+        };
+
+        if (!navigator.canShare(shareData)) {
+          shareData = { files: [file] };
+        }
+
+        if (navigator.canShare(shareData)) {
+          try {
+            await navigator.share(shareData);
+            sharedSuccessfully = true;
+          } catch (shareErr) {
+            if (shareErr.name === 'AbortError') {
+              // User cancelled native share sheet
+              setIsSharing(false);
+              return;
+            }
+            console.warn('Native share failed, falling back:', shareErr);
+          }
+        }
+      }
+
+      // Fallback for Desktop browsers or environments where file sharing via Web Share isn't supported:
+      // Desktop WhatsApp Web cannot accept file uploads directly via wa.me URL parameters.
+      // So we:
+      // 1. Copy the receipt image to clipboard (user can simply press Ctrl+V in WhatsApp chat)
+      // 2. Download the receipt PNG to computer
+      // 3. Open WhatsApp chat with pre-filled message text
+      if (!sharedSuccessfully) {
+        let copied = false;
+        if (navigator.clipboard && window.ClipboardItem) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            copied = true;
+          } catch (clipErr) {
+            console.warn('Clipboard write failed:', clipErr);
+          }
+        }
+
+        triggerImageDownload(canvas);
+
+        const encoded = encodeURIComponent(shareText);
+        const waUrl = waPhone 
+          ? `https://api.whatsapp.com/send?phone=${waPhone}&text=${encoded}`
+          : `https://api.whatsapp.com/send?text=${encoded}`;
+        window.open(waUrl, '_blank');
+
+        setShareNotice(
+          copied
+            ? 'पावती इमेज डाऊनलोड झाली व क्लिपबोर्डवर कॉपी केली आहे. WhatsApp वर Paste (Ctrl+V) करा!'
+            : 'पावती इमेज डाऊनलोड झाली आहे. WhatsApp वर इमेज जोडून पाठवा.'
+        );
+        setTimeout(() => setShareNotice(null), 8000);
+      }
+    } catch (e) {
+      console.error('WhatsApp share error:', e);
+      // Fallback to text link if canvas generation has errors
+      const encoded = encodeURIComponent(shareText);
+      const waUrl = waPhone 
+        ? `https://api.whatsapp.com/send?phone=${waPhone}&text=${encoded}`
+        : `https://api.whatsapp.com/send?text=${encoded}`;
+      window.open(waUrl, '_blank');
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   // SMS Share Trigger
@@ -102,88 +304,11 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
     window.print();
   };
 
-  // ==========================================================================
-  // MATHEMATICALLY PRECISE 1000x646 CANVAS IMAGE GENERATOR
-  // (Calibrated to exact pixel lines of 113155.jpg)
-  // ==========================================================================
+  // Explicit Download Image Trigger
   const handleDownloadImage = async () => {
     try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const width = 1000;
-      const height = 646;
-      canvas.width = width;
-      canvas.height = height;
-
-      if (document.fonts) {
-        await document.fonts.ready;
-      }
-
-      const drawOnCanvas = (img) => {
-        // 1. Draw template image background
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // 2. पावती क्र. (Receipt Number)
-        // Label ends at x: 535, baseline: y = 358
-        ctx.font = 'bold 20px "Mukta", sans-serif';
-        ctx.fillStyle = '#4A000B';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(receiptNoMarathi, 542, 358);
-
-        // 3. दि. (Date)
-        // Label ends at x: 854, baseline: y = 358
-        ctx.font = 'bold 18px "Mukta", sans-serif';
-        ctx.fillStyle = '#1E293B';
-        ctx.fillText(dateMarathi, 862, 358);
-
-        // 4. श्री./सौ. (Name of Donor) - BELOW THE LINE at y=412
-        ctx.font = 'bold 21px "Mukta", sans-serif';
-        ctx.fillStyle = '#0F172A';
-        ctx.fillText(donorName, 545, 434);
-
-        // 5. यांसकडून अक्षरी रुपये (Amount in Words) - BELOW THE LINE at y=452
-        ctx.font = 'bold 19px "Mukta", sans-serif';
-        ctx.fillStyle = '#0F172A';
-        ctx.fillText(amountWords, 642, 474);
-
-        // 6. Fourth line (Pending info or note) - BELOW line at y=496
-        if (isPending) {
-          ctx.font = 'bold 16px "Mukta", sans-serif';
-          ctx.fillStyle = '#9F1239';
-          ctx.fillText(`⚠️ बाकी शिल्लक रक्कम: रु. ${pendingDigitsMarathi}/- (एकूण ठरलेली: रु. ${totalDigitsMarathi}/-)`, 465, 518);
-        }
-
-        // 7. रु. (Amount in Numbers inside the white rectangular box)
-        // Box coordinates: x = 504 to 634, y = 551 to 584. Center = 569, 568
-        ctx.font = '900 24px "Mukta", sans-serif';
-        ctx.fillStyle = '#800020';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${amountDigitsMarathi}/-`, 569, 568);
-
-        // Trigger immediate download of PNG
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `Pavthi_${shortNo}_${donorName.replace(/\s+/g, '_')}.png`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      };
-
-      const domImg = templateImgRef.current;
-      if (domImg && domImg.complete && domImg.naturalWidth > 0) {
-        drawOnCanvas(domImg);
-      } else {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = '/receipt-template.jpg';
-        img.onload = () => drawOnCanvas(img);
-        img.onerror = () => {
-          img.src = '/113155.jpg';
-        };
-      }
+      const canvas = await generateReceiptCanvas();
+      triggerImageDownload(canvas);
     } catch (e) {
       alert('पावती डाऊनलोड करताना त्रुटी आली: ' + e.message);
     }
@@ -336,16 +461,33 @@ ${isPending ? `*⚠️ बाकी शिल्लक रक्कम:* रु.
             ACTION BUTTONS (WHATSAPP, SMS, PRINT, DOWNLOAD, RESET)
             ========================================================================== */}
         <div className="no-print bg-white p-3 sm:p-4 border-t border-slate-200 space-y-2.5">
+          {shareNotice && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs sm:text-sm font-semibold flex items-center gap-2 animate-fadeIn shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{shareNotice}</span>
+            </div>
+          )}
+
           {/* Sharing Buttons Row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {/* WhatsApp Message */}
             <button
               onClick={handleWhatsAppShare}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow transition cursor-pointer"
-              title="Send to WhatsApp"
+              disabled={isSharing}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-75 disabled:cursor-wait text-white font-bold text-xs sm:text-sm rounded-xl shadow transition cursor-pointer"
+              title="WhatsApp वर इमेज व मेसेज पाठवा"
             >
-              <Share2 className="w-4 h-4 text-emerald-100" />
-              <span>WhatsApp वर पाठवा</span>
+              {isSharing ? (
+                <>
+                  <Loader2 className="w-4 h-4 text-emerald-100 animate-spin" />
+                  <span>तयार होत आहे...</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-4 h-4 text-emerald-100" />
+                  <span>WhatsApp वर पाठवा</span>
+                </>
+              )}
             </button>
 
             {/* SMS Message */}

@@ -227,17 +227,40 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
 
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'D1 डेटाबेसमध्ये पावती नोंद अयशस्वी झाली');
+      if (res.ok && data.success && data.entry) {
+        const savedEntry = data.entry;
+        setRecentEntries(prev => [savedEntry, ...prev]);
+        setSuccessMsg(data.message || 'पावती D1 डेटाबेसमध्ये नोंद झाली!');
+        setSelectedReceipt(savedEntry);
+        handleResetForm();
+      } else {
+        // D1 database not bound on server -> fallback to local so donor still gets receipt immediately
+        const fallbackEntry = {
+          ...payload,
+          id: 'LOCAL-' + Date.now().toString(36),
+          receipt_no: `AM-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
+          date: new Date().toLocaleDateString('mr-IN'),
+          created_at: new Date().toISOString(),
+          is_local_only: true
+        };
+        setRecentEntries(prev => [fallbackEntry, ...prev]);
+        setErrorMsg(`⚠️ D1 डेटाबेस जोडलेला नाही: ${data.error || 'D1 DB Binding Missing'}. पावती फक्त तात्पुरती स्थानिक पातळीवर सेव्ह झाली आहे.`);
+        setSelectedReceipt(fallbackEntry);
+        handleResetForm();
       }
-
-      const savedEntry = data.entry;
-      setRecentEntries(prev => [savedEntry, ...prev]);
-      setSuccessMsg(data.message || 'पावती D1 डेटाबेसमध्ये नोंद झाली!');
-      setSelectedReceipt(savedEntry);
-      handleResetForm();
     } catch (err) {
-      setErrorMsg(err.message || 'नोंद जतन करताना त्रुटी आली');
+      const fallbackEntry = {
+        ...payload,
+        id: 'LOCAL-' + Date.now().toString(36),
+        receipt_no: `AM-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
+        date: new Date().toLocaleDateString('mr-IN'),
+        created_at: new Date().toISOString(),
+        is_local_only: true
+      };
+      setRecentEntries(prev => [fallbackEntry, ...prev]);
+      setErrorMsg(`⚠️ नेटवर्क त्रुटी: ${err.message}. पावती स्थानिक मेमरीमध्ये जतन झाली आहे.`);
+      setSelectedReceipt(fallbackEntry);
+      handleResetForm();
     } finally {
       setLoading(false);
     }
