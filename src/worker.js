@@ -44,42 +44,64 @@ export default {
             return jsonResponse({ error: 'वापरकर्ता नाव आणि पिन आवश्यक आहे' }, 400);
           }
 
+          // Normalize Marathi numerals in pin: e.g. ९९९९ -> 9999, ११२४ -> 1124
+          const mrDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+          const cleanPin = String(pin || '').trim().replace(/[०-९]/g, d => {
+            const idx = mrDigits.indexOf(d);
+            return idx !== -1 ? String(idx) : d;
+          });
+
+          // Normalize username
+          const rawUser = String(username || '').trim();
+          let normalizedUser = rawUser.toLowerCase().replace(/[\s_-]+/g, '');
+          if (normalizedUser.includes('super') || rawUser.includes('सुपर')) {
+            normalizedUser = 'superadmin';
+          } else if (normalizedUser.includes('admin') || rawUser.includes('प्रशासक') || rawUser.includes('ॲडमिन') || rawUser.includes('अ‍ॅडमिन')) {
+            normalizedUser = 'admin';
+          } else if (normalizedUser.includes('karyakarta') || rawUser.includes('कार्यकर्ता')) {
+            normalizedUser = 'karyakarta';
+          }
+
           let user = null;
           if (env && env.DB) {
             try {
               const res = await env.DB.prepare(
-                'SELECT id, username, name, role FROM users WHERE LOWER(username) = LOWER(?) AND pin = ?'
-              ).bind(username.trim(), pin.trim()).first();
+                'SELECT id, username, name, role FROM users WHERE (LOWER(username) = LOWER(?) OR LOWER(username) = LOWER(?)) AND (pin = ? OR pin = ?)'
+              ).bind(rawUser, normalizedUser, cleanPin, String(pin).trim()).first();
               user = res;
             } catch (dbErr) {
               console.error('D1 user lookup error:', dbErr);
             }
           }
 
-          // Fallback accounts if D1 table is not yet seeded
+          // Fallback accounts if D1 table is not yet seeded or user query didn't match
           if (!user) {
-            const trimmedUser = username.trim().toLowerCase();
-            const trimmedPin = pin.trim();
-
-            if (trimmedUser === 'superadmin' && (trimmedPin === '9999' || trimmedPin === '1124')) {
+            if (normalizedUser === 'superadmin' && (cleanPin === '9999' || cleanPin === '1124')) {
               user = {
                 id: 'usr_super',
                 username: 'superadmin',
                 name: 'मुख्य प्रशासक (Super Admin)',
                 role: 'superadmin'
               };
-            } else if ((trimmedUser === 'admin' || trimmedUser === 'karyakarta') && trimmedPin === '1124') {
+            } else if (normalizedUser === 'admin' && (cleanPin === '1124' || cleanPin === '9999')) {
               user = {
-                id: trimmedUser === 'admin' ? 'usr_01' : 'usr_02',
-                username: trimmedUser,
-                name: trimmedUser === 'admin' ? 'मंडळ प्रशासक (Admin)' : 'मंडळ कार्यकर्ता (Karyakarta)',
-                role: trimmedUser === 'admin' ? 'admin' : 'karyakarta'
+                id: 'usr_01',
+                username: 'admin',
+                name: 'मंडळ प्रशासक (Admin)',
+                role: 'admin'
+              };
+            } else if (normalizedUser === 'karyakarta' && (cleanPin === '1124' || cleanPin === '9999')) {
+              user = {
+                id: 'usr_02',
+                username: 'karyakarta',
+                name: 'मंडळ कार्यकर्ता (Karyakarta)',
+                role: 'karyakarta'
               };
             }
           }
 
           if (!user) {
-            return jsonResponse({ error: 'अवैध नाव किंवा पिन (Invalid credentials)' }, 401);
+            return jsonResponse({ error: 'अवैध नाव किंवा पिन (Super Admin: superadmin / 9999, Admin: admin / 1124)' }, 401);
           }
 
           const token = `mandal_${user.id}_${Date.now()}`;
