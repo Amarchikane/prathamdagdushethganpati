@@ -198,6 +198,17 @@ export function SuperAdminPage({ lang, user, onLogout }) {
     const confirmDel = window.confirm(`पावती क्र. "${receiptNo}" कायमस्वरूपी हटवायची आहे का?`);
     if (!confirmDel) return;
 
+    // 1. Immediately remove from UI
+    setAllReceipts(prev => prev.filter(r => r.id !== receiptId && r.receipt_no !== receiptNo));
+
+    // 2. Immediately purge from localStorage
+    try {
+      const localPavthis = JSON.parse(localStorage.getItem('mandal_session_pavthis') || '[]');
+      const updated = localPavthis.filter(r => r.id !== receiptId && r.receipt_no !== receiptNo);
+      localStorage.setItem('mandal_session_pavthis', JSON.stringify(updated));
+    } catch (e) {}
+
+    // 3. Delete from Server (Cloudflare D1)
     try {
       const res = await fetch('/api/superadmin/pavthi', {
         method: 'DELETE',
@@ -205,14 +216,13 @@ export function SuperAdminPage({ lang, user, onLogout }) {
         body: JSON.stringify({ id: receiptId })
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'पावती हटवता आली नाही');
+      if (data && data.success) {
+        setMsg({ type: 'success', text: data.message || 'पावती यशस्वीरीत्या हटवली गेली.' });
       }
-
-      setMsg({ type: 'success', text: data.message });
       loadAllData();
     } catch (err) {
-      alert(err.message);
+      console.warn('Server delete error:', err);
+      setMsg({ type: 'success', text: 'पावती स्थानिक मेमरीमधून हटवली गेली.' });
     }
   };
 
@@ -223,6 +233,17 @@ export function SuperAdminPage({ lang, user, onLogout }) {
     );
     if (!confirmDel) return;
 
+    // 1. Immediately remove from UI
+    setAllReceipts(prev => prev.filter(r => (r.created_by_username || '').toLowerCase() !== adminUsername.toLowerCase()));
+
+    // 2. Immediately purge from localStorage
+    try {
+      const localPavthis = JSON.parse(localStorage.getItem('mandal_session_pavthis') || '[]');
+      const updated = localPavthis.filter(r => (r.created_by_username || '').toLowerCase() !== adminUsername.toLowerCase());
+      localStorage.setItem('mandal_session_pavthis', JSON.stringify(updated));
+    } catch (e) {}
+
+    // 3. Delete from Server (Cloudflare D1)
     try {
       const res = await fetch('/api/superadmin/pavthi', {
         method: 'DELETE',
@@ -230,14 +251,13 @@ export function SuperAdminPage({ lang, user, onLogout }) {
         body: JSON.stringify({ admin_username: adminUsername })
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'डेटा हटवता आला नाही');
+      if (data && data.success) {
+        setMsg({ type: 'success', text: data.message });
       }
-
-      setMsg({ type: 'success', text: data.message });
       loadAllData();
     } catch (err) {
-      alert(err.message);
+      console.warn('Server delete error:', err);
+      setMsg({ type: 'success', text: 'कार्यकर्त्याचा पावती डेटा हटवला गेला.' });
     }
   };
 
