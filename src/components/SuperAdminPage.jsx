@@ -110,17 +110,7 @@ export function SuperAdminPage({ lang, user, onLogout }) {
         console.warn('Receipts fetch warning:', err);
       }
 
-      // 3. Fallback to LocalStorage ONLY if server was completely unreachable (offline)
-      if (!serverFetched) {
-        try {
-          const localPavthis = JSON.parse(
-            localStorage.getItem('mandal_recent_pavthis') || 
-            localStorage.getItem('mandal_session_pavthis') || 
-            '[]'
-          );
-          setAllReceipts(localPavthis);
-        } catch (e) {}
-      }
+      // Note: Super Admin strictly reflects live D1 database (no stale local cache)
     } catch (err) {
       console.error('loadAllData error:', err);
     } finally {
@@ -129,8 +119,40 @@ export function SuperAdminPage({ lang, user, onLogout }) {
   };
 
   useEffect(() => {
+    // Purge old local storage cache keys on Super Admin mount
+    try {
+      localStorage.removeItem('mandal_session_pavthis');
+      localStorage.removeItem('mandal_recent_pavthis');
+    } catch (e) {}
     loadAllData();
   }, []);
+
+  // Delete All Receipts Handler (Wipes database clean)
+  const handleDeleteAllReceipts = async () => {
+    const confirmDel = window.confirm('⚠️ सावधान! आपण सर्व पावत्या कायमस्वरूपी हटवू इच्छिता का? हा संपूर्ण डेटा नष्ट होईल!');
+    if (!confirmDel) return;
+
+    setAllReceipts([]);
+    try {
+      localStorage.removeItem('mandal_session_pavthis');
+      localStorage.removeItem('mandal_recent_pavthis');
+    } catch (e) {}
+
+    try {
+      const res = await fetch('/api/superadmin/pavthi', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delete_all: true })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        setMsg({ type: 'success', text: data.message });
+      }
+      loadAllData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   const formatRupees = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -686,6 +708,30 @@ export function SuperAdminPage({ lang, user, onLogout }) {
                   </option>
                 ))}
               </select>
+
+              {/* Refresh from D1 button */}
+              <button
+                type="button"
+                onClick={loadAllData}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-[#4A000B] border border-[#D4AF37]/50 rounded-xl text-xs font-bold transition cursor-pointer"
+                title="D1 डेटाबेसमधून ताजी माहिती आणा"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                <span>रिफ्रेश</span>
+              </button>
+
+              {/* Delete All Receipts button */}
+              {allReceipts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAllReceipts}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-bold transition cursor-pointer"
+                  title="सर्व पावत्या कायमस्वरूपी हटवा"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>सर्व हटवा</span>
+                </button>
+              )}
             </div>
           </div>
 

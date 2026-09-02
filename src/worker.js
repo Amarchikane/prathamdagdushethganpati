@@ -70,6 +70,11 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // Automatically ensure D1 database tables exist on any API call
+    if (url.pathname.startsWith('/api/') && env && env.DB) {
+      await ensureDbTables(env.DB);
+    }
+
     // Handle preflight OPTIONS
     if (request.method === 'OPTIONS') {
       return new Response(null, {
@@ -558,19 +563,22 @@ export default {
         }
       }
 
-      // 8. Super Admin Delete Pavthi (Single Receipt or Bulk by Admin)
+      // 8. Super Admin Delete Pavthi (Single Receipt, Bulk by Admin, or Delete All)
       if (url.pathname === '/api/superadmin/pavthi' && request.method === 'DELETE') {
         try {
           const body = await request.json();
-          const { id, admin_username } = body;
+          const { id, receipt_no, admin_username, delete_all } = body;
 
-          if (!id && !admin_username) {
-            return jsonResponse({ error: 'पावती ID किंवा प्रशासक नाव आवश्यक आहे' }, 400);
+          if (!id && !receipt_no && !admin_username && !delete_all) {
+            return jsonResponse({ error: 'पावती ID, पावती क्र. किंवा प्रशासक नाव आवश्यक आहे' }, 400);
           }
 
           if (env && env.DB) {
-            if (id) {
-              await env.DB.prepare('DELETE FROM pavthi_entries WHERE id = ?').bind(id).run();
+            if (delete_all) {
+              await env.DB.prepare('DELETE FROM pavthi_entries').run();
+            } else if (id || receipt_no) {
+              const target = id || receipt_no;
+              await env.DB.prepare('DELETE FROM pavthi_entries WHERE id = ? OR receipt_no = ?').bind(target, target).run();
             } else if (admin_username) {
               await env.DB.prepare('DELETE FROM pavthi_entries WHERE LOWER(created_by_username) = LOWER(?)')
                 .bind(admin_username.trim())
@@ -580,7 +588,7 @@ export default {
 
           return jsonResponse({
             success: true,
-            message: id ? 'पावती यशस्वीरीत्या हटवली गेली.' : `${admin_username} या कार्यकर्त्याचा सर्व पावती डेटा हटवला गेला.`
+            message: delete_all ? 'सर्व पावत्या यशस्वीरीत्या हटवल्या गेल्या.' : (id || receipt_no ? 'पावती यशस्वीरीत्या हटवली गेली.' : `${admin_username} या कार्यकर्त्याचा सर्व पावती डेटा हटवला गेला.`)
           });
         } catch (e) {
           return jsonResponse({ error: 'पावती हटवता आली नाही: ' + e.message }, 500);
