@@ -287,11 +287,23 @@ export default {
 
           let receiptNumber = '';
           try {
-            const countRes = await env.DB.prepare(
-              'SELECT COUNT(*) as total FROM pavthi_entries'
+            const maxRes = await env.DB.prepare(
+              `SELECT receipt_no FROM pavthi_entries WHERE receipt_no LIKE 'AM-${recYear}-%' ORDER BY length(receipt_no) DESC, receipt_no DESC LIMIT 1`
             ).first();
-            const nextSeq = ((countRes?.total || 0) + 1).toString().padStart(4, '0');
-            receiptNumber = `AM-${recYear}-${nextSeq}`;
+
+            let nextSeq = 1;
+            if (maxRes && maxRes.receipt_no) {
+              const parts = String(maxRes.receipt_no).split('-');
+              const lastNum = parseInt(parts[parts.length - 1], 10);
+              if (!isNaN(lastNum)) {
+                nextSeq = lastNum + 1;
+              }
+            } else {
+              const countRes = await env.DB.prepare('SELECT COUNT(*) as total FROM pavthi_entries').first();
+              nextSeq = (countRes?.total || 0) + 1;
+            }
+
+            receiptNumber = `AM-${recYear}-${nextSeq.toString().padStart(4, '0')}`;
           } catch (err) {
             receiptNumber = `AM-${recYear}-${Date.now().toString().slice(-4)}`;
           }

@@ -148,8 +148,8 @@ const devMandalApiPlugin = () => ({
           }
 
           const entry = {
-            id: 'PAV-' + Date.now(),
-            receipt_no: `AM-${currentYear}-${seq}`,
+            id: 'PAV-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6),
+            receipt_no: `AM-${recYear}-${seq}`,
             access_token: accessToken,
             date: entryDate,
             name_mr: body.name_mr || '',

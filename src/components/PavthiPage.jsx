@@ -323,6 +323,8 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const formattedDate = `${dd}/${mm}/${selectedYear}`;
 
+    const wordsMr = numberToMarathiWords(receivedAmt);
+
     const payload = {
       ...formData,
       year: selectedYear,
@@ -330,7 +332,7 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
       name_mr: finalNameMr,
       name_en: finalNameEn,
       amount: totalAmount,
-      amount_words_mr: amountWords,
+      amount_words_mr: wordsMr,
       is_pending: isPending ? 1 : 0,
       pending_amount: pendingAmt,
       received_amount: receivedAmt,
