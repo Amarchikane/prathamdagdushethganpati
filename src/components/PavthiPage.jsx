@@ -92,23 +92,93 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
     }
   }, [recentEntries]);
 
-  // Load existing pavthis from D1 on initial load if online
-  useEffect(() => {
-    if (!isOnline) return;
+  const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'superadmin'));
 
-    fetch('/api/pavthi')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.success && Array.isArray(data.entries) && data.entries.length > 0) {
-          setRecentEntries(prev => {
-            const map = new Map();
-            data.entries.forEach(item => map.set(item.id, item));
-            prev.forEach(item => map.set(item.id, item));
-            return Array.from(map.values()).slice(0, 50);
+  // Background Auto-Sync Engine: Uploads all pending local receipts to central database as soon as internet connects
+  const syncPendingReceipts = async () => {
+    if (!navigator.onLine) return;
+    try {
+      const saved = localStorage.getItem('mandal_recent_pavthis');
+      if (!saved) return;
+      const list = JSON.parse(saved);
+      if (!Array.isArray(list)) return;
+
+      const unsynced = list.filter(item => item && item.is_local_only);
+      if (unsynced.length === 0) return;
+
+      for (const item of unsynced) {
+        try {
+          const res = await fetch('/api/pavthi', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...item, is_local_only: undefined })
           });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.success && data.entry) {
+              setRecentEntries(prev => prev.map(p => (p.id === item.id || p.receipt_no === item.receipt_no) ? { ...data.entry, is_local_only: false } : p));
+              if (onDonorCreated) {
+                onDonorCreated(data.entry);
+              }
+            }
+          }
+        } catch (syncErr) {
+          console.warn('Sync item error:', syncErr);
         }
-      })
-      .catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Auto-sync error:', e);
+    }
+  };
+
+  // Load existing pavthis and trigger sync on mount & whenever online status changes
+  useEffect(() => {
+    if (isOnline) {
+      syncPendingReceipts();
+      fetch('/api/pavthi')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && Array.isArray(data.entries) && data.entries.length > 0) {
+            setRecentEntries(prev => {
+              const map = new Map();
+              data.entries.forEach(item => map.set(item.id, { ...item, is_local_only: false }));
+              prev.forEach(item => {
+                if (item.is_local_only && !map.has(item.id)) {
+                  map.set(item.id, item);
+                }
+              });
+              return Array.from(map.values()).slice(0, 50);
+            });
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Periodic auto-sync and real-time refresh every 15 seconds
+    const interval = setInterval(() => {
+      if (navigator.onLine) {
+        syncPendingReceipts();
+        fetch('/api/pavthi')
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.success && Array.isArray(data.entries)) {
+              setRecentEntries(prev => {
+                const map = new Map();
+                data.entries.forEach(item => map.set(item.id, { ...item, is_local_only: false }));
+                prev.forEach(item => {
+                  if (item.is_local_only && !map.has(item.id)) {
+                    map.set(item.id, item);
+                  }
+                });
+                return Array.from(map.values()).slice(0, 50);
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, [isOnline]);
 
   // Check Daily Handover Status & Past Day Lockout
@@ -203,9 +273,9 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
       return;
     }
 
-    // STRICT ONLINE CHECK - user specified: "the user should be online for that"
-    if (!isOnline) {
-      setErrorMsg(t.online_req_warning);
+    // If Admin/SuperAdmin: strictly enforce live online connection
+    if (isAdmin && !isOnline) {
+      setErrorMsg(lang === 'mr' ? '⚠️ प्रशासकांसाठी थेट सर्व्हर जोडणी (Online) आवश्यक आहे. कृपया इंटरनेट सुरू करा.' : '⚠️ Admin operations require active online connection. Please connect to the internet.');
       return;
     }
 
@@ -268,58 +338,73 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
       created_by_username: (user ? user.username : 'karyakarta').toLowerCase()
     };
 
+    setLoading(true);
+
     try {
-      const res = await fetch('/api/pavthi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      let savedEntry = null;
 
-      const data = await res.json();
+      if (isAdmin) {
+        // ADMIN / SUPER ADMIN: Strictly online, directly to database
+        const res = await fetch('/api/pavthi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-      if (res.ok && data.success && data.entry) {
-        const savedEntry = data.entry;
-        setRecentEntries(prev => [savedEntry, ...prev]);
-        if (onDonorCreated) {
-          onDonorCreated(savedEntry);
+        const data = await res.json();
+        if (!res.ok || !data.success || !data.entry) {
+          throw new Error(data.error || (lang === 'mr' ? 'सर्व्हरवर पावती नोंद होऊ शकली नाही' : 'Failed to save receipt to server'));
         }
-        setSuccessMsg(data.message || 'पावती D1 डेटाबेसमध्ये नोंद झाली!');
-        setSelectedReceipt(savedEntry);
-        handleResetForm(true);
+        savedEntry = data.entry;
       } else {
-        // D1 database not bound on server -> fallback to local so donor still gets receipt immediately
-        const fallbackEntry = {
-          ...payload,
-          id: 'LOCAL-' + Date.now().toString(36),
-          receipt_no: `AM-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
-          date: formattedDate,
-          created_at: new Date().toISOString(),
-          is_local_only: true
-        };
-        setRecentEntries(prev => [fallbackEntry, ...prev]);
-        if (onDonorCreated) {
-          onDonorCreated(fallbackEntry);
+        // REGULAR KARYAKARTA: Save directly to database if online, or fallback to auto-sync queue
+        try {
+          if (navigator.onLine) {
+            const res = await fetch('/api/pavthi', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.success && data.entry) {
+                savedEntry = data.entry;
+              }
+            }
+          }
+        } catch (networkErr) {
+          console.warn('Network issue during karyakarta pavthi creation, queuing for auto-sync:', networkErr);
         }
-        setErrorMsg(`⚠️ D1 डेटाबेस जोडलेला नाही: ${data.error || 'D1 DB Binding Missing'}. पावती फक्त तात्पुरती स्थानिक पातळीवर सेव्ह झाली आहे.`);
-        setSelectedReceipt(fallbackEntry);
-        handleResetForm(true);
+
+        if (!savedEntry) {
+          const seq = (recentEntries.length + 1).toString().padStart(4, '0');
+          savedEntry = {
+            ...payload,
+            id: 'PAV-' + Date.now().toString(36),
+            receipt_no: `AM-${selectedYear}-${seq}`,
+            date: formattedDate,
+            created_at: new Date().toISOString(),
+            is_local_only: true
+          };
+        }
+      }
+
+      setRecentEntries(prev => [savedEntry, ...prev]);
+      if (onDonorCreated) {
+        onDonorCreated(savedEntry);
+      }
+      setSuccessMsg(lang === 'mr' ? 'पावती यशस्वीरीत्या तयार झाली!' : 'Receipt created successfully!');
+      setSelectedReceipt(savedEntry);
+      handleResetForm(true);
+
+      // Trigger background sync for any remaining pending items
+      if (navigator.onLine) {
+        syncPendingReceipts();
       }
     } catch (err) {
-      const fallbackEntry = {
-        ...payload,
-        id: 'LOCAL-' + Date.now().toString(36),
-        receipt_no: `AM-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
-        date: formattedDate,
-        created_at: new Date().toISOString(),
-        is_local_only: true
-      };
-      setRecentEntries(prev => [fallbackEntry, ...prev]);
-      if (onDonorCreated) {
-        onDonorCreated(fallbackEntry);
-      }
-      setErrorMsg(`⚠️ नेटवर्क त्रुटी: ${err.message}. पावती स्थानिक मेमरीमध्ये जतन झाली आहे.`);
-      setSelectedReceipt(fallbackEntry);
-      handleResetForm(true);
+      console.error('Receipt creation error:', err);
+      setErrorMsg(lang === 'mr' ? 'त्रुटी: ' + err.message : 'Error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -429,20 +514,7 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
         </div>
       )}
 
-      {/* Strict Online Warning if offline */}
-      {!isOnline && (
-        <div className="flex items-start gap-3 p-4 bg-rose-50 border-2 border-rose-400 rounded-2xl text-xs sm:text-sm font-bold text-rose-800 shadow-sm animate-fadeIn">
-          <AlertTriangle className="w-5 h-5 shrink-0 text-rose-600 mt-0.5" />
-          <div>
-            <p className="font-black text-rose-900">
-              ⚠️ {lang === 'mr' ? 'इंटरनेट कनेक्शन आवश्यक आहे' : 'Internet Connection Required'}
-            </p>
-            <p className="font-normal text-rose-700 mt-0.5 leading-relaxed">
-              {t.online_req_warning}
-            </p>
-          </div>
-        </div>
-      )}
+
 
       {/* Main Entry Card */}
       <div className="bg-white border-2 border-[#D4AF37]/60 rounded-3xl shadow-lg overflow-hidden">
@@ -766,17 +838,15 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
 
             <button
               type="submit"
-              disabled={loading || !isOnline || handoverData.is_locked}
+              disabled={loading || handoverData.is_locked}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-extrabold text-sm shadow-md transition cursor-pointer ${
                 handoverData.is_locked
                   ? 'bg-rose-950 text-rose-200 cursor-not-allowed border border-rose-500 shadow-none'
-                  : !isOnline
-                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-[#4A000B] to-[#800020] hover:from-[#3B070E] hover:to-[#630D1A] text-white active:scale-98 border border-[#D4AF37]/50'
               }`}
             >
               {loading ? (
-                <span className="animate-spin">⏳ D1 मध्ये नोंद होत आहे...</span>
+                <span className="animate-spin">⏳ पावती तयार होत आहे...</span>
               ) : handoverData.is_locked ? (
                 <>
                   <Lock className="w-4 h-4 text-rose-300" />

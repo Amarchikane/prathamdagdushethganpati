@@ -54,7 +54,7 @@ export const TRANSLATIONS = {
 
     // Authentication
     login_title: "कार्यकर्ता लॉगिन (Mandal Login)",
-    login_subtitle: "पावती तयार करण्यासाठी आणि D1 डेटाबेसमध्ये नोंद करण्यासाठी लॉगिन करा",
+    login_subtitle: "पावती तयार करण्यासाठी आणि सर्व्हरवर नोंद करण्यासाठी लॉगिन करा",
     login_username: "वापरकर्ता नाव (Username)",
     login_pin: "पासकोड / सुरक्षा पिन (PIN)",
     login_btn: "प्रवेश करा (Login)",
@@ -63,7 +63,7 @@ export const TRANSLATIONS = {
 
     // Pavthi Form
     pavthi_page_title: "नवीन वर्गणी / देणगी पावती नोंद",
-    pavthi_page_desc: "Cloudflare D1 डेटाबेसमध्ये पावती नोंदवून त्वरित व्हॉट्सॲप, मेसेज व प्रिंटद्वारे पावती द्या.",
+    pavthi_page_desc: "पावती नोंदवून त्वरित व्हॉट्सॲप, मेसेज व प्रिंटद्वारे पावती द्या.",
     donor_name_mr: "दात्याचे नाव (मराठीत)",
     donor_name_en: "दात्याचे नाव (इंग्रजीत / English)",
     donor_mobile: "मोबाइल नंबर (WhatsApp / SMS साठी)",
@@ -79,10 +79,10 @@ export const TRANSLATIONS = {
     fully_paid_badge: "पूर्ण जमा",
     donation_type_label: "प्रकार",
     payment_mode_label: "पद्धत",
-    submit_pavthi_btn: "पावती बनवा आणि D1 मध्ये नोंदवा",
-    online_req_warning: "डेटाबेस (D1) मध्ये पावती नोंदवण्यासाठी इंटरनेट (Online) आवश्यक आहे. कृपया इंटरनेट चालू करा.",
-    online_status_ok: "D1 डेटाबेस थेट कनेक्टेड (Live Online)",
-    offline_status_blocked: "ऑफलाइन - नोंद करता येणार नाही",
+    submit_pavthi_btn: "पावती बनवा आणि नोंद करा",
+    online_req_warning: "सर्व्हरवर पावती नोंदवण्यासाठी इंटरनेट आवश्यक आहे.",
+    online_status_ok: "सर्व्हर थेट कनेक्टेड (Live Online)",
+    offline_status_blocked: "स्थानिक ऑफलाइन मोड (Local Storage Mode)",
     recent_entries_title: "आज तयार केलेल्या पावत्या (Recent Entries)",
     no_recent_entries: "आज अजून कोणतीही पावती तयार केलेली नाही.",
 
@@ -158,7 +158,7 @@ export const TRANSLATIONS = {
 
     // Authentication
     login_title: "Karyakarta Login",
-    login_subtitle: "Log in to issue new receipts and record into Cloudflare D1 database",
+    login_subtitle: "Log in to issue new receipts and manage records",
     login_username: "Username",
     login_pin: "Passcode / Security PIN",
     login_btn: "Sign In",
@@ -167,7 +167,7 @@ export const TRANSLATIONS = {
 
     // Pavthi Form
     pavthi_page_title: "New Donation / Pavthi Entry",
-    pavthi_page_desc: "Record into Cloudflare D1 database and immediately send receipt via WhatsApp, SMS or Print.",
+    pavthi_page_desc: "Record donation and immediately send receipt via WhatsApp, SMS or Print.",
     donor_name_mr: "Donor Name (Marathi)",
     donor_name_en: "Donor Name (English)",
     donor_mobile: "Mobile Number (For WhatsApp / SMS)",
@@ -183,10 +183,10 @@ export const TRANSLATIONS = {
     fully_paid_badge: "Fully Paid",
     donation_type_label: "Category",
     payment_mode_label: "Payment Mode",
-    submit_pavthi_btn: "Generate Pavthi & Save to D1",
-    online_req_warning: "Internet connection is required to record entry to Cloudflare D1 database. Please connect to internet.",
-    online_status_ok: "Connected to D1 Database (Live Online)",
-    offline_status_blocked: "Offline - Cannot Save Entry",
+    submit_pavthi_btn: "Generate & Save Pavthi",
+    online_req_warning: "Internet connection is required to record entry to online database. Please connect to internet.",
+    online_status_ok: "Connected to Server (Live Online)",
+    offline_status_blocked: "Local Storage Mode",
     recent_entries_title: "Today's Issued Receipts",
     no_recent_entries: "No receipts issued in this session yet.",
 

@@ -119,18 +119,33 @@ export function useDonors() {
     }
   });
 
-  // Fetch online entries from D1 database on mount to keep search 100% updated
+  // Fetch online entries from database on mount & periodically to keep search 100% updated across all users
   useEffect(() => {
     if (typeof window === 'undefined' || typeof fetch !== 'function') return;
 
-    fetch('/api/pavthi')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.success && Array.isArray(data.entries) && data.entries.length > 0) {
-          setDonors(prev => mergeDonorsList(data.entries, prev));
-        }
-      })
-      .catch(() => {});
+    const fetchLatestPavthis = () => {
+      if (!navigator.onLine) return;
+      fetch('/api/pavthi')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && Array.isArray(data.entries) && data.entries.length > 0) {
+            setDonors(prev => mergeDonorsList(data.entries, prev));
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchLatestPavthis();
+
+    const interval = setInterval(fetchLatestPavthis, 15000);
+    window.addEventListener('online', fetchLatestPavthis);
+    window.addEventListener('focus', fetchLatestPavthis);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', fetchLatestPavthis);
+      window.removeEventListener('focus', fetchLatestPavthis);
+    };
   }, []);
 
   // Sync to localStorage whenever donors list updates

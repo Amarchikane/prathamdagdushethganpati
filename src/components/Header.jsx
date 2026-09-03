@@ -19,7 +19,7 @@ export function Header({ lang, setLang, isOnline, activeTab, setActiveTab, user,
             </span>
             <span className={`hidden sm:inline-flex items-center gap-1 text-[11px] ${isOnline ? 'text-emerald-400' : 'text-rose-400'}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-              <span>{isOnline ? 'Live Cloud D1' : 'Offline'}</span>
+              <span>{isOnline ? 'Live Online' : 'Offline'}</span>
             </span>
           </div>
 

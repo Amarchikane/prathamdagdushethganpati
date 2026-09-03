@@ -225,7 +225,7 @@ export default {
             return jsonResponse({ 
               success: false, 
               entries: [], 
-              error: 'Cloudflare D1 डेटाबेस जोडलेला नाही (D1 DB binding missing in wrangler.jsonc or Cloudflare Dashboard)' 
+              error: 'डेटाबेस जोडलेला नाही' 
             }, 503);
           }
 
@@ -247,7 +247,7 @@ export default {
           if (!env || !env.DB) {
             return jsonResponse({
               success: false,
-              error: 'Cloudflare D1 डेटाबेस जोडलेला नाही (D1 DB binding missing in wrangler.jsonc or Cloudflare Dashboard). कृपया D1 जोडणी तपासा.'
+              error: 'डेटाबेस जोडलेला नाही'
             }, 503);
           }
 
@@ -374,7 +374,7 @@ export default {
 
           return jsonResponse({
             success: true,
-            message: 'पावती यशस्वीरीत्या जतन झाली (Saved to D1 Database)',
+            message: 'पावती यशस्वीरीत्या जतन झाली',
             entry: newEntry
           });
         } catch (e) {

@@ -171,7 +171,7 @@ const devMandalApiPlugin = () => ({
             created_at: new Date().toISOString()
           };
           mockPavthiDb.unshift(entry);
-          sendJson({ success: true, message: 'D1 डेटाबेस नोंद यशस्वी', entry });
+          sendJson({ success: true, message: 'पावती नोंद यशस्वी', entry });
         });
         return;
       }

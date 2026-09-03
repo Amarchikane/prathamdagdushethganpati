@@ -25,7 +25,7 @@ import {
 import { TRANSLATIONS } from '../i18n/translations';
 import { ReceiptModal } from './ReceiptModal';
 
-export function SuperAdminPage({ lang, user, onLogout }) {
+export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
   const t = TRANSLATIONS[lang];
 
   const [loading, setLoading] = useState(true);
@@ -464,6 +464,17 @@ export function SuperAdminPage({ lang, user, onLogout }) {
           </button>
         </div>
       </div>
+
+      {/* Offline Mode Disabled Warning for Admins */}
+      {!isOnline && (
+        <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-2xl text-xs sm:text-sm font-bold text-rose-800 flex items-center gap-3 shadow-md animate-fadeIn">
+          <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+          <div>
+            <p className="font-black text-rose-950">⚠️ थेट ऑनलाइन सर्व्हर आवश्यक आहे (Offline Mode Disabled for Admins)</p>
+            <p className="font-normal text-rose-800 mt-0.5">मुख्य प्रशासक नियंत्रण कक्ष, हिशोब तपासणी व अहवाल थेट सर्व्हर डेटाबेसशी जोडलेले आहेत. प्रशासकीय कामकाजासाठी कृपया इंटरनेट सुरू करा.</p>
+          </div>
+        </div>
+      )}
 
       {/* Action Notification Alert */}
       {msg.text && (
@@ -1029,7 +1040,7 @@ export function SuperAdminPage({ lang, user, onLogout }) {
                 type="button"
                 onClick={loadAllData}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-[#4A000B] border border-[#D4AF37]/50 rounded-xl text-xs font-bold transition cursor-pointer"
-                title="D1 डेटाबेसमधून ताजी माहिती आणा"
+                title="डेटाबेसमधून ताजी माहिती आणा"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 <span>रिफ्रेश</span>

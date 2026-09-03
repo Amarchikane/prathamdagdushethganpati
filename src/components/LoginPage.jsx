@@ -121,7 +121,7 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
           {/* Connection status badge */}
           <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-black/30 border border-[#D4AF37]/40">
             <Wifi className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span className="text-emerald-300">Cloud D1 Portal Active</span>
+            <span className="text-emerald-300">Online Portal Active</span>
           </div>
         </div>
 

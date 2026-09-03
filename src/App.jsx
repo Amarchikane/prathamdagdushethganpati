@@ -246,6 +246,7 @@ export function App() {
             <SuperAdminPage
               lang={lang}
               user={user}
+              isOnline={isOnline}
               onLogout={handleLogout}
             />
           )
@@ -295,7 +296,7 @@ export function App() {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4A000B] to-[#800020] hover:from-[#3B070E] hover:to-[#630D1A] active:scale-95 text-[#FFFDF9] text-xs font-black rounded-xl shadow border border-[#D4AF37]/50 transition cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4 text-[#FDE68A]" />
-                <span>{lang === 'mr' ? '+ नवीन पावती / देणगी नोंद (D1)' : '+ New Donation / Pavthi (D1)'}</span>
+                <span>{lang === 'mr' ? '+ नवीन पावती / देणगी नोंद' : '+ New Donation / Pavthi'}</span>
               </button>
             </div>
 
