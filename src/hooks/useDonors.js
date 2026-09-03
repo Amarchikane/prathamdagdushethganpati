@@ -128,8 +128,20 @@ export function useDonors() {
       fetch('/api/pavthi')
         .then(res => res.json())
         .then(data => {
-          if (data && data.success && Array.isArray(data.entries) && data.entries.length > 0) {
-            setDonors(prev => mergeDonorsList(data.entries, prev));
+          if (data && data.success && Array.isArray(data.entries)) {
+            let localOnly = [];
+            try {
+              const savedRecent = localStorage.getItem(RECENT_KEY);
+              if (savedRecent) {
+                const parsed = JSON.parse(savedRecent);
+                if (Array.isArray(parsed)) {
+                  localOnly = parsed.filter(item => item && item.is_local_only);
+                }
+              }
+            } catch (_) {}
+
+            const activeList = [...localOnly, ...data.entries];
+            setDonors(mergeDonorsList(activeList, SEED_DONORS));
           }
         })
         .catch(() => {});
@@ -172,6 +184,54 @@ export function useDonors() {
     });
   }, []);
 
+  // Method to immediately remove a deleted pavthi from the searchable register
+  const removeDonor = useCallback((idOrReceiptNo) => {
+    if (!idOrReceiptNo) return;
+    const target = String(idOrReceiptNo).toLowerCase();
+    setDonors(prev => {
+      const updated = prev.filter(d => 
+        (d.id || '').toLowerCase() !== target && 
+        (d.receipt_no || '').toLowerCase() !== target
+      );
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
+  }, []);
+
+  // Global listener for receipt deletion events
+  useEffect(() => {
+    const handleDeleteEvent = (e) => {
+      const { id, receipt_no, all, username } = e.detail || {};
+      if (all) {
+        setDonors(SEED_DONORS.map(normalizeDonor));
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DONORS.map(normalizeDonor)));
+        } catch (_) {}
+        return;
+      }
+      if (username) {
+        const u = username.toLowerCase();
+        setDonors(prev => {
+          const updated = prev.filter(d => (d.created_by_username || '').toLowerCase() !== u);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+          } catch (_) {}
+          return updated;
+        });
+        return;
+      }
+      if (id || receipt_no) {
+        if (id) removeDonor(id);
+        if (receipt_no) removeDonor(receipt_no);
+      }
+    };
+
+    window.addEventListener('mandal_receipt_deleted', handleDeleteEvent);
+    return () => window.removeEventListener('mandal_receipt_deleted', handleDeleteEvent);
+  }, [removeDonor]);
+
   const resetToSeed = useCallback(() => {
     const seed = SEED_DONORS.map(normalizeDonor);
     setDonors(seed);
@@ -183,6 +243,7 @@ export function useDonors() {
   return {
     donors,
     addDonor,
+    removeDonor,
     resetToSeed
   };
 }

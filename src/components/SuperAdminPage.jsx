@@ -234,7 +234,10 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
     try {
       localStorage.removeItem('mandal_session_pavthis');
       localStorage.removeItem('mandal_recent_pavthis');
+      localStorage.removeItem('mandal_donors_v2');
     } catch (e) {}
+
+    window.dispatchEvent(new CustomEvent('mandal_receipt_deleted', { detail: { all: true } }));
 
     try {
       const res = await fetch('/api/superadmin/pavthi', {
@@ -324,14 +327,29 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
     // 1. Immediately remove from UI
     setAllReceipts(prev => prev.filter(r => r.id !== receiptId && r.receipt_no !== receiptNo));
 
-    // 2. Immediately purge from localStorage
+    // 2. Immediately purge from localStorage across all keys
     try {
-      const localPavthis = JSON.parse(localStorage.getItem('mandal_session_pavthis') || '[]');
-      const updated = localPavthis.filter(r => r.id !== receiptId && r.receipt_no !== receiptNo);
-      localStorage.setItem('mandal_session_pavthis', JSON.stringify(updated));
+      const purgeList = (key) => {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list)) {
+            const updated = list.filter(r => r && r.id !== receiptId && r.receipt_no !== receiptNo);
+            localStorage.setItem(key, JSON.stringify(updated));
+          }
+        }
+      };
+      purgeList('mandal_session_pavthis');
+      purgeList('mandal_recent_pavthis');
+      purgeList('mandal_donors_v2');
     } catch (e) {}
 
-    // 3. Delete from Server (Cloudflare D1)
+    // 3. Dispatch global deletion event for useDonors and search register
+    window.dispatchEvent(new CustomEvent('mandal_receipt_deleted', { 
+      detail: { id: receiptId, receipt_no: receiptNo } 
+    }));
+
+    // 4. Delete from Server
     try {
       const res = await fetch('/api/superadmin/pavthi', {
         method: 'DELETE',
@@ -356,17 +374,34 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
     );
     if (!confirmDel) return;
 
-    // 1. Immediately remove from UI
-    setAllReceipts(prev => prev.filter(r => (r.created_by_username || '').toLowerCase() !== adminUsername.toLowerCase()));
+    const u = adminUsername.toLowerCase();
 
-    // 2. Immediately purge from localStorage
+    // 1. Immediately remove from UI
+    setAllReceipts(prev => prev.filter(r => (r.created_by_username || '').toLowerCase() !== u));
+
+    // 2. Immediately purge from localStorage across all keys
     try {
-      const localPavthis = JSON.parse(localStorage.getItem('mandal_session_pavthis') || '[]');
-      const updated = localPavthis.filter(r => (r.created_by_username || '').toLowerCase() !== adminUsername.toLowerCase());
-      localStorage.setItem('mandal_session_pavthis', JSON.stringify(updated));
+      const purgeAdminList = (key) => {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list)) {
+            const updated = list.filter(r => (r.created_by_username || '').toLowerCase() !== u);
+            localStorage.setItem(key, JSON.stringify(updated));
+          }
+        }
+      };
+      purgeAdminList('mandal_session_pavthis');
+      purgeAdminList('mandal_recent_pavthis');
+      purgeAdminList('mandal_donors_v2');
     } catch (e) {}
 
-    // 3. Delete from Server (Cloudflare D1)
+    // 3. Dispatch global deletion event
+    window.dispatchEvent(new CustomEvent('mandal_receipt_deleted', { 
+      detail: { username: adminUsername } 
+    }));
+
+    // 4. Delete from Server
     try {
       const res = await fetch('/api/superadmin/pavthi', {
         method: 'DELETE',

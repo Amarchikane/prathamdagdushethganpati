@@ -181,6 +181,28 @@ export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
     return () => clearInterval(interval);
   }, [isOnline]);
 
+  // Listen for receipt deletion events to immediately remove deleted receipts from local recent list
+  useEffect(() => {
+    const handleDeleteEvent = (e) => {
+      const { id, receipt_no, all, username } = e.detail || {};
+      if (all) {
+        setRecentEntries([]);
+        return;
+      }
+      if (username) {
+        const u = username.toLowerCase();
+        setRecentEntries(prev => prev.filter(r => (r.created_by_username || '').toLowerCase() !== u));
+        return;
+      }
+      if (id || receipt_no) {
+        setRecentEntries(prev => prev.filter(r => r.id !== id && r.receipt_no !== receiptNo));
+      }
+    };
+
+    window.addEventListener('mandal_receipt_deleted', handleDeleteEvent);
+    return () => window.removeEventListener('mandal_receipt_deleted', handleDeleteEvent);
+  }, []);
+
   // Check Daily Handover Status & Past Day Lockout
   const fetchHandoverStatus = async () => {
     if (!user) return;

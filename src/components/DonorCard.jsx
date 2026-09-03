@@ -29,8 +29,17 @@ export function DonorCard({ donor, lang }) {
   };
 
   const isPavthi = Boolean(donor.receipt_no || donor.is_new_entry);
-  const displayId = donor.receipt_no ? `पावती: ${donor.receipt_no}` : donor.id;
-  const displayDate = donor.date || (donor.year ? `वर्ष ${donor.year}` : '२०२४');
+  // Extract Year only (e.g. 2026, 2025, 2024)
+  let displayYear = donor.year;
+  if (!displayYear && donor.date) {
+    const match = String(donor.date).match(/\b(20\d{2})\b/);
+    if (match) {
+      displayYear = match[1];
+    }
+  }
+  if (!displayYear) {
+    displayYear = '2024';
+  }
 
   const handleCopyRef = () => {
     const textToCopy = `${donor.receipt_no || donor.id} | ${nameDisplay} | ${donor.book_ref} | ${formatRupees(donor.amount)}`;
@@ -45,7 +54,7 @@ export function DonorCard({ donor, lang }) {
       <div className="p-4 sm:p-5 space-y-3">
         {/* Top Badges Row */}
         <div className="flex items-center justify-between gap-2 border-b border-[#E8DEC8] pb-2">
-          {/* Reg ID / Receipt No + Date */}
+          {/* Reg ID / Receipt No + Year */}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className={`font-mono text-xs font-black px-2.5 py-0.5 rounded-lg ${
               isPavthi 
@@ -54,9 +63,9 @@ export function DonorCard({ donor, lang }) {
             }`}>
               {displayId}
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
-              <Calendar className="w-3 h-3 text-slate-400" />
-              {displayDate}
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-amber-50/70 border border-[#D4AF37]/40 px-2 py-0.5 rounded-md">
+              <Calendar className="w-3 h-3 text-[#800020]" />
+              <span>{lang === 'mr' ? `वर्ष ${displayYear}` : `Year ${displayYear}`}</span>
             </span>
             {Boolean(donor.is_pending) && (
               <span className="text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
