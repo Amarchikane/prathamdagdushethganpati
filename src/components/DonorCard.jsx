@@ -30,6 +30,8 @@ export function DonorCard({ donor, lang = 'mr' }) {
   };
 
   const isPavthi = Boolean(donor.receipt_no || donor.is_new_entry);
+  const displayId = donor.receipt_no ? `पावती: ${donor.receipt_no}` : (donor.id || '');
+
   // Extract Year only (e.g. 2026, 2025, 2024)
   let displayYear = donor.year;
   if (!displayYear && donor.date) {

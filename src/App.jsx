@@ -35,9 +35,11 @@ class ErrorBoundary extends React.Component {
     try {
       localStorage.removeItem('mandal_donors_v2');
       localStorage.removeItem('mandal_recent_pavthis');
+      localStorage.removeItem('mandal_session_pavthis');
+      sessionStorage.clear();
     } catch (_) {}
     this.setState({ hasError: false, error: null });
-    window.location.reload();
+    window.location.href = window.location.origin + window.location.pathname;
   };
 
   render() {

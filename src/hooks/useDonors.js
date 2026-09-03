@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SEED_DONORS } from '../data/seedDonors';
+import { SEED_DONORS } from '../data/seedDonors.js';
 
 const STORAGE_KEY = 'mandal_donors_v2';
 const RECENT_KEY = 'mandal_recent_pavthis';

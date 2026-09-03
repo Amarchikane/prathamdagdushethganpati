@@ -444,14 +444,15 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
   };
 
   // Filtered Receipts List
-  const filteredReceipts = allReceipts.filter(r => {
+  const filteredReceipts = (allReceipts || []).filter(r => {
+    if (!r || typeof r !== 'object') return false;
     const matchesAdmin = selectedAdminFilter === 'ALL' || (r.created_by_username || '').toLowerCase() === selectedAdminFilter.toLowerCase();
-    const q = searchQuery.trim().toLowerCase();
+    const q = (searchQuery || '').trim().toLowerCase();
     const matchesQuery = !q || 
-      (r.name_mr && r.name_mr.toLowerCase().includes(q)) ||
-      (r.name_en && r.name_en.toLowerCase().includes(q)) ||
-      (r.receipt_no && r.receipt_no.toLowerCase().includes(q)) ||
-      (r.mobile && r.mobile.includes(q));
+      (r.name_mr && String(r.name_mr).toLowerCase().includes(q)) ||
+      (r.name_en && String(r.name_en).toLowerCase().includes(q)) ||
+      (r.receipt_no && String(r.receipt_no).toLowerCase().includes(q)) ||
+      (r.mobile && String(r.mobile).includes(q));
     return matchesAdmin && matchesQuery;
   });
 
@@ -850,11 +851,11 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
           {/* List of Registered Accounts */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
             <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
-              सर्व नोंदणीकृत वापरकर्ते व पासवर्ड व्यवस्थापन ({statsData.users.length})
+              सर्व नोंदणीकृत वापरकर्ते व पासवर्ड व्यवस्थापन ({(statsData.users || []).length})
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {statsData.users.map((u) => (
-                <div key={u.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+              {(statsData.users || []).map((u) => (
+                <div key={u.id || u.username} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                   <div>
                     <div className="font-extrabold text-xs text-[#4A000B]">{u.name}</div>
                     <div className="text-[11px] text-slate-500 font-mono">@{u.username} • {u.role}</div>
@@ -901,7 +902,7 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {statsData.daily_collections.map((day) => (
+                  {(statsData.daily_collections || []).map((day) => (
                     <tr key={day.date} className="hover:bg-amber-50/50 transition">
                       <td className="py-3 px-4 font-extrabold text-slate-900">
                         {day.date}
@@ -974,7 +975,7 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {allHandovers.length > 0 ? (
+                  {allHandovers && allHandovers.length > 0 ? (
                     allHandovers.map((h) => (
                       <tr key={h.id || h.date + h.username} className="hover:bg-amber-50/40 transition">
                         <td className="py-3 px-4 font-extrabold text-slate-900">
@@ -1063,7 +1064,7 @@ export function SuperAdminPage({ lang, user, isOnline, onLogout }) {
                 className="py-1.5 px-3 text-xs rounded-xl border border-slate-300 font-bold text-slate-700 focus:outline-none bg-white"
               >
                 <option value="ALL">सर्व कार्यकर्ते (All Admins)</option>
-                {statsData.by_admin.map(a => (
+                {(statsData.by_admin || []).map(a => (
                   <option key={a.username} value={a.username}>
                     {a.name} (@{a.username})
                   </option>
