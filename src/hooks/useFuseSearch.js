@@ -3,11 +3,14 @@ import Fuse from 'fuse.js';
 
 // Helper to extract searchable word tokens from a donor record
 function getDonorTokens(donor) {
+  if (!donor || typeof donor !== 'object') return [];
   const nameEn = (donor.name_en || '').toLowerCase();
   const nameMr = (donor.name_mr || '').toLowerCase();
   const mobile = (donor.mobile || '').toLowerCase();
   const receiptNo = (donor.receipt_no || '').toLowerCase();
-  const aliases = (donor.phonetic_aliases || []).map(a => String(a).toLowerCase());
+  const aliases = Array.isArray(donor.phonetic_aliases)
+    ? donor.phonetic_aliases.map(a => String(a || '').toLowerCase())
+    : [];
 
   const tokensMr = nameMr.split(/[^a-z0-9\u0900-\u097F]+/).filter(Boolean);
   const tokensEn = nameEn.split(/[^a-z0-9\u0900-\u097F]+/).filter(Boolean);
@@ -17,7 +20,8 @@ function getDonorTokens(donor) {
 
 // Calculate match closeness tier (lower number = closer match)
 function calculateSearchRank(donor, rawQuery, fuseScore = null) {
-  const q = rawQuery.trim().toLowerCase();
+  if (!donor || typeof donor !== 'object') return 999;
+  const q = (rawQuery || '').trim().toLowerCase();
   if (!q) return 999;
 
   const id = (donor.id || '').toLowerCase();
@@ -112,40 +116,48 @@ function calculateSearchRank(donor, rawQuery, fuseScore = null) {
   return 999;
 }
 
-export function searchAndRankDonors(donors, query = '', selectedLandmark = 'ALL', sortBy = 'AMOUNT_DESC', fuse = null) {
-  const cleanQuery = query.trim();
+export function searchAndRankDonors(donors = [], query = '', selectedLandmark = 'ALL', sortBy = 'AMOUNT_DESC', fuse = null) {
+  if (!Array.isArray(donors)) return [];
+  const validDonors = donors.filter(d => Boolean(d && d.id));
+  const cleanQuery = (query || '').trim();
 
   // 1. If query is empty, apply landmark filter and simple sort
   if (!cleanQuery) {
-    let list = [...donors];
+    let list = [...validDonors];
 
     if (selectedLandmark && selectedLandmark !== 'ALL') {
       list = list.filter(item => 
-        item.landmark_mr === selectedLandmark || item.landmark_en === selectedLandmark
+        item && (item.landmark_mr === selectedLandmark || item.landmark_en === selectedLandmark)
       );
     }
 
     list.sort((a, b) => {
-      if (sortBy === 'AMOUNT_DESC') return b.amount - a.amount;
-      if (sortBy === 'AMOUNT_ASC') return a.amount - b.amount;
-      if (sortBy === 'NAME') return a.name_mr.localeCompare(b.name_mr, 'mr');
+      if (!a || !b) return 0;
+      if (sortBy === 'AMOUNT_DESC') return (b.amount || 0) - (a.amount || 0);
+      if (sortBy === 'AMOUNT_ASC') return (a.amount || 0) - (b.amount || 0);
+      if (sortBy === 'NAME') return (a.name_mr || '').localeCompare(b.name_mr || '', 'mr');
       return 0;
     });
 
-    return list;
+    return list.filter(Boolean);
   }
 
   // 2. Query is active: Run Fuse search for fuzzy scores and compute closeness tiers
   const fuseScoreMap = new Map();
   if (fuse) {
-    const fuseResults = fuse.search(cleanQuery);
-    fuseResults.forEach(r => {
-      fuseScoreMap.set(r.item.id, r.score);
-    });
+    try {
+      const fuseResults = fuse.search(cleanQuery);
+      fuseResults.forEach(r => {
+        if (r && r.item && r.item.id) {
+          fuseScoreMap.set(r.item.id, r.score);
+        }
+      });
+    } catch (_) {}
   }
 
   const candidates = [];
-  for (const donor of donors) {
+  for (const donor of validDonors) {
+    if (!donor) continue;
     // Apply Landmark Filter early
     if (selectedLandmark && selectedLandmark !== 'ALL') {
       if (donor.landmark_mr !== selectedLandmark && donor.landmark_en !== selectedLandmark) {
@@ -162,66 +174,73 @@ export function searchAndRankDonors(donors, query = '', selectedLandmark = 'ALL'
   }
 
   // 3. Sort candidates:
-  // Primarily by closeness rank tier (e.g. closest exact match first)
-  // Within the same closeness tier, apply the user's chosen sort order
   candidates.sort((a, b) => {
+    if (!a.donor || !b.donor) return 0;
     if (a.rank !== b.rank) {
       return a.rank - b.rank;
     }
     if (sortBy === 'AMOUNT_DESC') {
-      return b.donor.amount - a.donor.amount;
+      return (b.donor.amount || 0) - (a.donor.amount || 0);
     }
     if (sortBy === 'AMOUNT_ASC') {
-      return a.donor.amount - b.donor.amount;
+      return (a.donor.amount || 0) - (b.donor.amount || 0);
     }
     if (sortBy === 'NAME') {
-      return a.donor.name_mr.localeCompare(b.donor.name_mr, 'mr');
+      return (a.donor.name_mr || '').localeCompare(b.donor.name_mr || '', 'mr');
     }
     return (a.score || 0) - (b.score || 0);
   });
 
-  return candidates.map(c => c.donor);
+  return candidates.map(c => c.donor).filter(Boolean);
 }
 
-export function useFuseSearch(donors) {
+export function useFuseSearch(donors = []) {
   const [query, setQuery] = useState('');
   const [selectedLandmark, setSelectedLandmark] = useState('ALL');
   const [sortBy, setSortBy] = useState('AMOUNT_DESC'); // AMOUNT_DESC, AMOUNT_ASC, NAME
 
-  const fuse = useMemo(() => {
-    return new Fuse(donors, {
-      keys: [
-        { name: 'name_mr', weight: 0.35 },
-        { name: 'name_en', weight: 0.35 },
-        { name: 'receipt_no', weight: 0.2 },
-        { name: 'mobile', weight: 0.2 },
-        { name: 'phonetic_aliases', weight: 0.15 },
-        { name: 'landmark_mr', weight: 0.1 },
-        { name: 'landmark_en', weight: 0.1 },
-        { name: 'book_ref', weight: 0.1 },
-        { name: 'amount', weight: 0.1 }
-      ],
-      threshold: 0.35,
-      ignoreLocation: true,
-      useExtendedSearch: true,
-      includeScore: true,
-      minMatchCharLength: 1
-    });
+  const validDonors = useMemo(() => {
+    return Array.isArray(donors) ? donors.filter(d => Boolean(d && d.id)) : [];
   }, [donors]);
+
+  const fuse = useMemo(() => {
+    try {
+      return new Fuse(validDonors, {
+        keys: [
+          { name: 'name_mr', weight: 0.35 },
+          { name: 'name_en', weight: 0.35 },
+          { name: 'receipt_no', weight: 0.2 },
+          { name: 'mobile', weight: 0.2 },
+          { name: 'phonetic_aliases', weight: 0.15 },
+          { name: 'landmark_mr', weight: 0.1 },
+          { name: 'landmark_en', weight: 0.1 },
+          { name: 'book_ref', weight: 0.1 },
+          { name: 'amount', weight: 0.1 }
+        ],
+        threshold: 0.35,
+        ignoreLocation: true,
+        useExtendedSearch: true,
+        includeScore: true,
+        minMatchCharLength: 1
+      });
+    } catch (_) {
+      return null;
+    }
+  }, [validDonors]);
 
   // Extract unique landmarks for filter chips
   const landmarks = useMemo(() => {
     const set = new Set();
-    donors.forEach(d => {
-      if (d.landmark_mr) set.add(d.landmark_mr);
-      if (d.landmark_en) set.add(d.landmark_en);
+    validDonors.forEach(d => {
+      if (d && d.landmark_mr) set.add(d.landmark_mr);
+      if (d && d.landmark_en) set.add(d.landmark_en);
     });
     return Array.from(set);
-  }, [donors]);
+  }, [validDonors]);
 
   const filteredAndSortedDonors = useMemo(() => {
-    return searchAndRankDonors(donors, query, selectedLandmark, sortBy, fuse);
-  }, [donors, fuse, query, selectedLandmark, sortBy]);
+    return searchAndRankDonors(validDonors, query, selectedLandmark, sortBy, fuse);
+  }, [validDonors, fuse, query, selectedLandmark, sortBy]);
 
   return {
     query,
@@ -232,8 +251,7 @@ export function useFuseSearch(donors) {
     setSortBy,
     landmarks,
     results: filteredAndSortedDonors,
-    totalCount: donors.length,
+    totalCount: validDonors.length,
     filteredCount: filteredAndSortedDonors.length
   };
 }
-

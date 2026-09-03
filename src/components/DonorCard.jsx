@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { MapPin, BookOpen, FileText, Copy, Check, Calendar } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/translations';
 
-export function DonorCard({ donor, lang }) {
-  const t = TRANSLATIONS[lang];
+export function DonorCard({ donor, lang = 'mr' }) {
+  if (!donor || typeof donor !== 'object') return null;
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.mr || {};
   const [copied, setCopied] = useState(false);
 
-  const nameDisplay = lang === 'mr' 
+  const nameDisplay = (lang === 'mr' 
     ? (donor.name_mr || donor.name_en) 
-    : (donor.name_en || donor.name_mr);
+    : (donor.name_en || donor.name_mr)) || 'देणगीदार';
   
   const secondaryName = lang === 'mr' ? donor.name_en : donor.name_mr;
 

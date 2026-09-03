@@ -5,12 +5,14 @@ const STORAGE_KEY = 'mandal_donors_v2';
 const RECENT_KEY = 'mandal_recent_pavthis';
 
 // Helper to normalize any pavthi/donor record into a unified donor format
-function normalizeDonor(entry) {
-  if (!entry) return null;
-  const nameMr = (entry.name_mr || entry.name_en || '').trim();
-  const nameEn = (entry.name_en || entry.name_mr || '').trim();
+export function normalizeDonor(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  const nameMr = String(entry.name_mr || entry.name_en || '').trim();
+  const nameEn = String(entry.name_en || entry.name_mr || '').trim();
+  if (!nameMr && !nameEn) return null;
+
   const rawId = entry.id || (entry.receipt_no ? `PAV-${entry.receipt_no}` : `DON-${Date.now()}`);
-  const receiptNo = entry.receipt_no || '';
+  const receiptNo = entry.receipt_no ? String(entry.receipt_no) : '';
   const mobile = entry.mobile ? String(entry.mobile).trim() : '';
 
   // Generate phonetic / search aliases
@@ -23,10 +25,15 @@ function normalizeDonor(entry) {
   if (mobile && !aliases.includes(mobile)) aliases.push(mobile);
   if (receiptNo && !aliases.includes(receiptNo)) aliases.push(receiptNo);
 
-  const rawYear = entry.year || (entry.date ? parseInt(entry.date.slice(-4), 10) : new Date().getFullYear());
+  let rawYear = entry.year;
+  if (!rawYear && entry.date) {
+    const match = String(entry.date).match(/\b(20\d{2})\b/);
+    if (match) rawYear = parseInt(match[1], 10);
+  }
+  if (!rawYear) rawYear = 2024;
 
   return {
-    id: rawId,
+    id: String(rawId),
     receipt_no: receiptNo,
     name_mr: nameMr,
     name_en: nameEn,
@@ -43,16 +50,19 @@ function normalizeDonor(entry) {
     book_ref: entry.book_ref || (receiptNo ? `पावती क्र. ${receiptNo}` : 'नवीन पावती'),
     note_mr: entry.note_mr || '',
     date: entry.date || new Date().toLocaleDateString('mr-IN'),
-    year: isNaN(rawYear) ? new Date().getFullYear() : rawYear,
+    year: isNaN(rawYear) ? 2024 : rawYear,
     is_new_entry: Boolean(entry.receipt_no || entry.is_new_entry)
   };
 }
 
 // Merge unique donor records preserving custom/recent ones at the top
-function mergeDonorsList(primaryList = [], secondaryList = []) {
+export function mergeDonorsList(primaryList = [], secondaryList = []) {
   const map = new Map();
+  const safePrimary = Array.isArray(primaryList) ? primaryList : [];
+  const safeSecondary = Array.isArray(secondaryList) ? secondaryList : [];
+
   // 1. Add primary/custom records first (these appear at the top)
-  primaryList.forEach(item => {
+  safePrimary.forEach(item => {
     if (!item) return;
     const normalized = normalizeDonor(item);
     if (normalized && normalized.id) {
@@ -64,7 +74,7 @@ function mergeDonorsList(primaryList = [], secondaryList = []) {
   });
 
   // 2. Add secondary/seed records
-  secondaryList.forEach(item => {
+  safeSecondary.forEach(item => {
     if (!item) return;
     const normalized = normalizeDonor(item);
     if (normalized && normalized.id && !map.has(normalized.id)) {
@@ -79,13 +89,13 @@ function mergeDonorsList(primaryList = [], secondaryList = []) {
   const uniqueItems = new Set();
   const result = [];
   for (const item of map.values()) {
-    if (!uniqueItems.has(item.id)) {
+    if (item && item.id && !uniqueItems.has(item.id)) {
       uniqueItems.add(item.id);
       result.push(item);
     }
   }
 
-  return result;
+  return result.filter(Boolean);
 }
 
 export function useDonors() {
@@ -115,7 +125,7 @@ export function useDonors() {
       return mergeDonorsList(initialCustom, SEED_DONORS);
     } catch (e) {
       console.error('Error reading donors from localStorage', e);
-      return SEED_DONORS.map(normalizeDonor);
+      return SEED_DONORS.map(normalizeDonor).filter(Boolean);
     }
   });
 
@@ -176,7 +186,8 @@ export function useDonors() {
     if (!normalized) return;
 
     setDonors(prev => {
-      const updated = [normalized, ...prev.filter(d => d.id !== normalized.id && d.receipt_no !== normalized.receipt_no)];
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const updated = [normalized, ...safePrev.filter(d => d && d.id !== normalized.id && d.receipt_no !== normalized.receipt_no)];
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (_) {}
@@ -189,7 +200,9 @@ export function useDonors() {
     if (!idOrReceiptNo) return;
     const target = String(idOrReceiptNo).toLowerCase();
     setDonors(prev => {
-      const updated = prev.filter(d => 
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const updated = safePrev.filter(d => 
+        d && 
         (d.id || '').toLowerCase() !== target && 
         (d.receipt_no || '').toLowerCase() !== target
       );
@@ -205,16 +218,18 @@ export function useDonors() {
     const handleDeleteEvent = (e) => {
       const { id, receipt_no, all, username } = e.detail || {};
       if (all) {
-        setDonors(SEED_DONORS.map(normalizeDonor));
+        const seed = SEED_DONORS.map(normalizeDonor).filter(Boolean);
+        setDonors(seed);
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_DONORS.map(normalizeDonor)));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
         } catch (_) {}
         return;
       }
       if (username) {
-        const u = username.toLowerCase();
+        const u = String(username).toLowerCase();
         setDonors(prev => {
-          const updated = prev.filter(d => (d.created_by_username || '').toLowerCase() !== u);
+          const safePrev = Array.isArray(prev) ? prev : [];
+          const updated = safePrev.filter(d => d && (d.created_by_username || '').toLowerCase() !== u);
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
           } catch (_) {}
@@ -233,7 +248,7 @@ export function useDonors() {
   }, [removeDonor]);
 
   const resetToSeed = useCallback(() => {
-    const seed = SEED_DONORS.map(normalizeDonor);
+    const seed = SEED_DONORS.map(normalizeDonor).filter(Boolean);
     setDonors(seed);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));

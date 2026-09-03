@@ -32,6 +32,10 @@ class ErrorBoundary extends React.Component {
   }
 
   handleReset = () => {
+    try {
+      localStorage.removeItem('mandal_donors_v2');
+      localStorage.removeItem('mandal_recent_pavthis');
+    } catch (_) {}
     this.setState({ hasError: false, error: null });
     window.location.reload();
   };
@@ -332,8 +336,8 @@ export function App() {
 
                   {/* Cards Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-6">
-                    {displayedResults.map((donor) => (
-                      <DonorCard key={donor.id} donor={donor} lang={lang} />
+                    {displayedResults.map((donor, idx) => (
+                      donor ? <DonorCard key={donor.id || `donor-${idx}`} donor={donor} lang={lang} /> : null
                     ))}
                   </div>
 
