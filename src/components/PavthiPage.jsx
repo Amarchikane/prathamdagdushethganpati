@@ -30,7 +30,11 @@ import {
 import { ReceiptModal } from './ReceiptModal';
 import { DailyHandoverModal } from './DailyHandoverModal';
 
+const CURRENT_YEAR = new Date().getFullYear();
+const AVAILABLE_YEARS = Array.from({ length: 8 }, (_, i) => CURRENT_YEAR - i);
+
 const INITIAL_FORM = {
+  year: CURRENT_YEAR,
   mobile: '',
   amount: '',
   donation_type: 'वर्गणी (Contribution)',
@@ -41,7 +45,7 @@ const INITIAL_FORM = {
   note_mr: ''
 };
 
-export function PavthiPage({ lang, isOnline, user, onLogout }) {
+export function PavthiPage({ lang, isOnline, user, onLogout, onDonorCreated }) {
   const t = TRANSLATIONS[lang];
   
   // Single Donor Name State with auto-conversion
@@ -243,12 +247,16 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
       finalNameEn = convertedName.trim() || nameInput.trim();
     }
 
-    setLoading(true);
-
-    const amountWords = numberToMarathiWords(receivedAmt);
+    const selectedYear = Number(formData.year) || CURRENT_YEAR;
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const formattedDate = `${dd}/${mm}/${selectedYear}`;
 
     const payload = {
       ...formData,
+      year: selectedYear,
+      date: formattedDate,
       name_mr: finalNameMr,
       name_en: finalNameEn,
       amount: totalAmount,
@@ -272,6 +280,9 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
       if (res.ok && data.success && data.entry) {
         const savedEntry = data.entry;
         setRecentEntries(prev => [savedEntry, ...prev]);
+        if (onDonorCreated) {
+          onDonorCreated(savedEntry);
+        }
         setSuccessMsg(data.message || 'पावती D1 डेटाबेसमध्ये नोंद झाली!');
         setSelectedReceipt(savedEntry);
         handleResetForm(true);
@@ -281,11 +292,14 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
           ...payload,
           id: 'LOCAL-' + Date.now().toString(36),
           receipt_no: `AM-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
-          date: new Date().toLocaleDateString('mr-IN'),
+          date: formattedDate,
           created_at: new Date().toISOString(),
           is_local_only: true
         };
         setRecentEntries(prev => [fallbackEntry, ...prev]);
+        if (onDonorCreated) {
+          onDonorCreated(fallbackEntry);
+        }
         setErrorMsg(`⚠️ D1 डेटाबेस जोडलेला नाही: ${data.error || 'D1 DB Binding Missing'}. पावती फक्त तात्पुरती स्थानिक पातळीवर सेव्ह झाली आहे.`);
         setSelectedReceipt(fallbackEntry);
         handleResetForm(true);
@@ -295,11 +309,14 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
         ...payload,
         id: 'LOCAL-' + Date.now().toString(36),
         receipt_no: `AM-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
-        date: new Date().toLocaleDateString('mr-IN'),
+        date: formattedDate,
         created_at: new Date().toISOString(),
         is_local_only: true
       };
       setRecentEntries(prev => [fallbackEntry, ...prev]);
+      if (onDonorCreated) {
+        onDonorCreated(fallbackEntry);
+      }
       setErrorMsg(`⚠️ नेटवर्क त्रुटी: ${err.message}. पावती स्थानिक मेमरीमध्ये जतन झाली आहे.`);
       setSelectedReceipt(fallbackEntry);
       handleResetForm(true);
@@ -524,8 +541,27 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
             )}
           </div>
 
-          {/* Mobile & Landmark Row */}
+          {/* Year & Mobile Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Year Selection Dropdown */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-[#800020]" />
+                <span>{t.receipt_year_label} *</span>
+              </label>
+              <select
+                value={formData.year}
+                onChange={e => setFormData({ ...formData, year: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 border border-[#E8DEC8] focus:border-[#4A000B] rounded-xl text-sm font-black text-slate-900 focus:ring-2 focus:ring-[#800020]/20 focus:outline-none transition bg-white"
+              >
+                {AVAILABLE_YEARS.map(yr => (
+                  <option key={yr} value={yr}>
+                    {yr} {yr === CURRENT_YEAR ? (lang === 'mr' ? '(चालू वर्ष)' : '(Current Year)') : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Mobile Number for WhatsApp / SMS */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -539,7 +575,10 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
                 className="w-full px-3.5 py-2.5 border border-[#E8DEC8] focus:border-[#4A000B] rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-[#800020]/20 focus:outline-none transition"
               />
             </div>
+          </div>
 
+          {/* Landmark & Donation Type Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Landmark */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -554,6 +593,23 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
                 <option value="अकरा मारुती चौक">अकरा मारुती चौक</option>
                 <option value="शाहू चौक">शाहू चौक</option>
                 <option value="मंडई परिसर">मंडई परिसर</option>
+              </select>
+            </div>
+
+            {/* Donation Type */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                {t.donation_type_label}
+              </label>
+              <select
+                value={formData.donation_type}
+                onChange={e => setFormData({ ...formData, donation_type: e.target.value })}
+                className="w-full px-3 py-2.5 border border-[#E8DEC8] rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none bg-white"
+              >
+                <option value="वर्गणी (Contribution)">वर्गणी (Contribution)</option>
+                <option value="ऐच्छिक देणगी (Donation)">ऐच्छिक देणगी (Donation)</option>
+                <option value="महाआरती / पूजा (Pooja)">महाआरती / पूजा (Pooja)</option>
+                <option value="विशेष सहकार्य (Special Sponsor)">विशेष सहकार्य (Special Sponsor)</option>
               </select>
             </div>
           </div>
@@ -648,25 +704,8 @@ export function PavthiPage({ lang, isOnline, user, onLogout }) {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Donation Type */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t.donation_type_label}
-              </label>
-              <select
-                value={formData.donation_type}
-                onChange={e => setFormData({ ...formData, donation_type: e.target.value })}
-                className="w-full px-3 py-2.5 border border-[#E8DEC8] rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none bg-white"
-              >
-                <option value="वर्गणी (Contribution)">वर्गणी (Contribution)</option>
-                <option value="ऐच्छिक देणगी (Donation)">ऐच्छिक देणगी (Donation)</option>
-                <option value="महाआरती / पूजा (Pooja)">महाआरती / पूजा (Pooja)</option>
-                <option value="विशेष सहकार्य (Special Sponsor)">विशेष सहकार्य (Special Sponsor)</option>
-              </select>
-            </div>
-
-            {/* Payment Mode */}
+          {/* Payment Mode Row */}
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 {t.payment_mode_label}

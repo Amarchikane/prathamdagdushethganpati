@@ -28,8 +28,12 @@ export function DonorCard({ donor, lang }) {
     }).format(amount);
   };
 
+  const isPavthi = Boolean(donor.receipt_no || donor.is_new_entry);
+  const displayId = donor.receipt_no ? `पावती: ${donor.receipt_no}` : donor.id;
+  const displayDate = donor.date || (donor.year ? `वर्ष ${donor.year}` : '२०२४');
+
   const handleCopyRef = () => {
-    const textToCopy = `${donor.id} | ${nameDisplay} | ${donor.book_ref} | ${formatRupees(donor.amount)}`;
+    const textToCopy = `${donor.receipt_no || donor.id} | ${nameDisplay} | ${donor.book_ref} | ${formatRupees(donor.amount)}`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -41,15 +45,24 @@ export function DonorCard({ donor, lang }) {
       <div className="p-4 sm:p-5 space-y-3">
         {/* Top Badges Row */}
         <div className="flex items-center justify-between gap-2 border-b border-[#E8DEC8] pb-2">
-          {/* Reg ID + Year */}
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-lg bg-[#FAF6ED] text-[#4A000B] border border-[#D4AF37]/45">
-              {donor.id}
+          {/* Reg ID / Receipt No + Date */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={`font-mono text-xs font-black px-2.5 py-0.5 rounded-lg ${
+              isPavthi 
+                ? 'bg-rose-50 text-[#800020] border border-rose-300'
+                : 'bg-[#FAF6ED] text-[#4A000B] border border-[#D4AF37]/45'
+            }`}>
+              {displayId}
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
               <Calendar className="w-3 h-3 text-slate-400" />
-              {donor.year || 2024}
+              {displayDate}
             </span>
+            {Boolean(donor.is_pending) && (
+              <span className="text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
+                बाकी: ₹{donor.pending_amount}
+              </span>
+            )}
           </div>
 
           {/* Quick Copy Button */}
@@ -84,7 +97,7 @@ export function DonorCard({ donor, lang }) {
           )}
         </div>
 
-        {/* Verification Safeguards: Landmark & Physical Register Reference */}
+        {/* Verification Safeguards: Landmark, Mobile & Physical Register Reference */}
         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-medium pt-1">
           {/* Chowk / Landmark Badge */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FAF6ED] text-[#4A000B] font-bold border border-[#D4AF37]/35">
@@ -92,11 +105,20 @@ export function DonorCard({ donor, lang }) {
             <span>{landmarkDisplay}</span>
           </div>
 
+          {/* Mobile if present */}
+          {donor.mobile && (
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 font-mono font-bold border border-emerald-200">
+              <span>📞 {donor.mobile}</span>
+            </div>
+          )}
+
           {/* Physical Book Reference Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-50 text-rose-950 font-bold border border-rose-200/80">
-            <BookOpen className="w-4 h-4 text-[#800020] shrink-0" />
-            <span>{donor.book_ref}</span>
-          </div>
+          {donor.book_ref && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-50 text-rose-950 font-bold border border-rose-200/80">
+              <BookOpen className="w-4 h-4 text-[#800020] shrink-0" />
+              <span>{donor.book_ref}</span>
+            </div>
+          )}
 
           {/* Note if present */}
           {noteDisplay && (
@@ -108,14 +130,14 @@ export function DonorCard({ donor, lang }) {
         </div>
       </div>
 
-      {/* Bottom Strip with Last Year's Contribution Amount */}
+      {/* Bottom Strip with Contribution Amount */}
       <div className="bg-gradient-to-r from-[#3B070E] via-[#630D1A] to-[#800020] p-3.5 sm:p-4 text-[#FFFDF9] flex items-center justify-between gap-2 border-t-2 border-[#D4AF37]/45">
         <div>
           <span className="text-[11px] sm:text-xs uppercase tracking-wider font-extrabold text-[#FDE68A] block">
-            {t.last_year_contribution}
+            {isPavthi ? (lang === 'mr' ? 'नोंद झालेली देणगी / वर्गणी' : 'Donation / Pavthi Amount') : t.last_year_contribution}
           </span>
           <span className="text-xs text-[#FDE68A]/75 font-medium hidden sm:inline">
-            (Last Year Amount)
+            {isPavthi ? (donor.payment_mode || 'रोख') : '(Last Year Amount)'}
           </span>
         </div>
 

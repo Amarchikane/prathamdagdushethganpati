@@ -104,7 +104,7 @@ export function App() {
   });
 
   const isOnline = useOnlineStatus();
-  const { donors } = useDonors();
+  const { donors, addDonor } = useDonors();
 
   const {
     query,
@@ -272,6 +272,7 @@ export function App() {
               isOnline={isOnline}
               user={user}
               onLogout={handleLogout}
+              onDonorCreated={addDonor}
             />
           )
         ) : (

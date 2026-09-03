@@ -5,12 +5,14 @@ import Fuse from 'fuse.js';
 function getDonorTokens(donor) {
   const nameEn = (donor.name_en || '').toLowerCase();
   const nameMr = (donor.name_mr || '').toLowerCase();
+  const mobile = (donor.mobile || '').toLowerCase();
+  const receiptNo = (donor.receipt_no || '').toLowerCase();
   const aliases = (donor.phonetic_aliases || []).map(a => String(a).toLowerCase());
 
   const tokensMr = nameMr.split(/[^a-z0-9\u0900-\u097F]+/).filter(Boolean);
   const tokensEn = nameEn.split(/[^a-z0-9\u0900-\u097F]+/).filter(Boolean);
 
-  return Array.from(new Set([...tokensMr, ...tokensEn, ...aliases]));
+  return Array.from(new Set([...tokensMr, ...tokensEn, ...aliases, mobile, receiptNo].filter(Boolean)));
 }
 
 // Calculate match closeness tier (lower number = closer match)
@@ -19,6 +21,8 @@ function calculateSearchRank(donor, rawQuery, fuseScore = null) {
   if (!q) return 999;
 
   const id = (donor.id || '').toLowerCase();
+  const receiptNo = (donor.receipt_no || '').toLowerCase();
+  const mobile = (donor.mobile || '').toLowerCase();
   const nameEn = (donor.name_en || '').toLowerCase();
   const nameMr = (donor.name_mr || '').toLowerCase();
   const bookRef = (donor.book_ref || '').toLowerCase();
@@ -29,9 +33,19 @@ function calculateSearchRank(donor, rawQuery, fuseScore = null) {
 
   const isNumeric = /^\d+$/.test(q);
 
-  // 1. Exact ID match (e.g. 'REG-021' or '021' or 'reg-21')
-  if (id === q || id.replace('reg-', '') === q.replace('reg-', '').padStart(3, '0')) {
+  // 1. Exact ID or Receipt No match (e.g. 'REG-021', 'AM-2024-0101', '0101', '101')
+  if (
+    id === q || 
+    id.replace('reg-', '') === q.replace('reg-', '').padStart(3, '0') ||
+    receiptNo === q ||
+    (receiptNo && receiptNo.endsWith(q))
+  ) {
     return 10;
+  }
+
+  // 1.5 Exact mobile number match or partial mobile match
+  if (mobile && (mobile === q || mobile.includes(q))) {
+    return 15;
   }
 
   // 2. Exact full name match
@@ -177,9 +191,11 @@ export function useFuseSearch(donors) {
   const fuse = useMemo(() => {
     return new Fuse(donors, {
       keys: [
-        { name: 'name_mr', weight: 0.4 },
-        { name: 'name_en', weight: 0.4 },
-        { name: 'phonetic_aliases', weight: 0.2 },
+        { name: 'name_mr', weight: 0.35 },
+        { name: 'name_en', weight: 0.35 },
+        { name: 'receipt_no', weight: 0.2 },
+        { name: 'mobile', weight: 0.2 },
+        { name: 'phonetic_aliases', weight: 0.15 },
         { name: 'landmark_mr', weight: 0.1 },
         { name: 'landmark_en', weight: 0.1 },
         { name: 'book_ref', weight: 0.1 },

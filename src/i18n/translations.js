@@ -58,7 +58,6 @@ export const TRANSLATIONS = {
     login_username: "वापरकर्ता नाव (Username)",
     login_pin: "पासकोड / सुरक्षा पिन (PIN)",
     login_btn: "प्रवेश करा (Login)",
-    login_demo_hint: "कार्यकर्ता: admin (पिन: 1124) | मुख्य सुपर ॲडमिन: superadmin (पिन: 9999)",
     logout_btn: "लॉगआउट",
     logged_in_as: "प्रवेश केलेले:",
 
@@ -72,6 +71,7 @@ export const TRANSLATIONS = {
     donor_name_single_label: "दात्याचे नाव (Donor Name)",
     donor_name_single_placeholder: "इंग्रजीत किंवा मराठीत नाव टाईप करा (उदा. suresh kadam किंवा सुरेश कदम)",
     auto_converted_to: "आपोआप रूपांतरित नाव:",
+    receipt_year_label: "पावती वर्ष (Receipt Year)",
     is_pending_checkbox: "रक्कम बाकी आहे का? (Amount Pending / Partial Payment)",
     pending_amount_label: "बाकी रक्कम (Pending Amount ₹)",
     received_amount_label: "आज जमा रक्कम (Received Amount ₹)",
@@ -162,7 +162,6 @@ export const TRANSLATIONS = {
     login_username: "Username",
     login_pin: "Passcode / Security PIN",
     login_btn: "Sign In",
-    login_demo_hint: "Karyakarta: admin (PIN: 1124) | Super Admin: superadmin (PIN: 9999)",
     logout_btn: "Logout",
     logged_in_as: "Logged in as:",
 
@@ -176,6 +175,7 @@ export const TRANSLATIONS = {
     donor_name_single_label: "Donor Name (दात्याचे नाव)",
     donor_name_single_placeholder: "Type in English or Marathi (e.g. suresh kadam or सुरेश कदम)",
     auto_converted_to: "Auto converted name:",
+    receipt_year_label: "Receipt Year",
     is_pending_checkbox: "Is amount pending? (Partial Payment)",
     pending_amount_label: "Pending Amount (बाकी रक्कम ₹)",
     received_amount_label: "Received Amount (जमा रक्कम ₹)",

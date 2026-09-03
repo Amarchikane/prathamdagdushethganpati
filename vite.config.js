@@ -110,7 +110,7 @@ const devMandalApiPlugin = () => ({
               }
             });
           } else {
-            sendJson({ error: 'अवैध नाव किंवा पिन (Super Admin: superadmin / 9999, Admin: admin / 1124)' }, 401);
+            sendJson({ error: 'अवैध वापरकर्ता नाव किंवा पिन' }, 401);
           }
         });
         return;
@@ -125,7 +125,7 @@ const devMandalApiPlugin = () => ({
       // 3. New Pavthi
       if (pathname === '/api/pavthi' && req.method === 'POST') {
         parseJsonBody().then(body => {
-          const currentYear = new Date().getFullYear();
+          const recYear = body.year ? Number(body.year) : new Date().getFullYear();
           const seq = (mockPavthiDb.length + 1).toString().padStart(4, '0');
           const totalAmt = Number(body.amount) || 0;
           const isPending = Boolean(body.is_pending);
@@ -134,11 +134,24 @@ const devMandalApiPlugin = () => ({
 
           const accessToken = 'sec_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
 
+          let entryDate = '';
+          if (body.date && typeof body.date === 'string' && body.date.trim()) {
+            const dStr = body.date.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+              const [y, m, d] = dStr.split('-');
+              entryDate = `${d}/${m}/${y}`;
+            } else {
+              entryDate = dStr;
+            }
+          } else {
+            entryDate = new Date().toLocaleDateString('mr-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          }
+
           const entry = {
             id: 'PAV-' + Date.now(),
             receipt_no: `AM-${currentYear}-${seq}`,
             access_token: accessToken,
-            date: new Date().toLocaleDateString('mr-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+            date: entryDate,
             name_mr: body.name_mr || '',
             name_en: body.name_en || body.name_mr || '',
             mobile: body.mobile || '',

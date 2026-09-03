@@ -199,7 +199,7 @@ export default {
           }
 
           if (!user) {
-            return jsonResponse({ error: 'अवैध नाव किंवा पिन (Super Admin: superadmin / 9999, Admin: admin / 1124)' }, 401);
+            return jsonResponse({ error: 'अवैध वापरकर्ता नाव किंवा पिन' }, 401);
           }
 
           const token = `mandal_${user.id}_${Date.now()}`;
@@ -255,6 +255,7 @@ export default {
 
           const body = await request.json();
           const {
+            date,
             name_mr,
             name_en,
             mobile,
@@ -281,7 +282,7 @@ export default {
           const pendingAmt = isPending ? Math.max(0, Number(pending_amount) || 0) : 0;
           const receivedAmt = isPending ? Math.max(0, totalAmt - pendingAmt) : totalAmt;
 
-          const currentYear = new Date().getFullYear();
+          const recYear = body.year ? Number(body.year) : new Date().getFullYear();
           const id = 'PAV-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
 
           let receiptNumber = '';
@@ -290,16 +291,27 @@ export default {
               'SELECT COUNT(*) as total FROM pavthi_entries'
             ).first();
             const nextSeq = ((countRes?.total || 0) + 1).toString().padStart(4, '0');
-            receiptNumber = `AM-${currentYear}-${nextSeq}`;
+            receiptNumber = `AM-${recYear}-${nextSeq}`;
           } catch (err) {
-            receiptNumber = `AM-${currentYear}-${Date.now().toString().slice(-4)}`;
+            receiptNumber = `AM-${recYear}-${Date.now().toString().slice(-4)}`;
           }
 
-          const entryDate = new Date().toLocaleDateString('mr-IN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          });
+          let entryDate = '';
+          if (date && typeof date === 'string' && date.trim()) {
+            const dStr = date.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+              const [y, m, d] = dStr.split('-');
+              entryDate = `${d}/${m}/${y}`;
+            } else {
+              entryDate = dStr;
+            }
+          } else {
+            entryDate = new Date().toLocaleDateString('mr-IN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            });
+          }
 
           const randomBytes = new Uint8Array(16);
           crypto.getRandomValues(randomBytes);

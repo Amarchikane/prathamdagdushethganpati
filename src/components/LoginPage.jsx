@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, KeyRound, Wifi, ShieldAlert, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Lock, User, KeyRound, Wifi, ShieldAlert, ArrowRight } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/translations';
 import { GanpatiLogo } from './GanpatiLogo';
 
@@ -27,7 +27,7 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
     const cleanPin = normalizeDigits(pin.trim());
 
     if (!cleanUser || !cleanPin) {
-      setErrorMsg(lang === 'mr' ? 'कृपया युझरनेम आणि पिन प्रविष्ट करा' : 'Please enter username and PIN');
+      setErrorMsg(lang === 'mr' ? 'कृपया वापरकर्ता नाव आणि पिन प्रविष्ट करा' : 'Please enter username and PIN');
       return;
     }
 
@@ -61,8 +61,7 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
         return;
       }
 
-      // 2. Resilient Client-Side Fallback Authentication
-      // (Guarantees Super Admin and Admin can ALWAYS log in even if server is deploying or offline)
+      // 2. Client-Side Fallback Authentication
       const u = cleanUser.toLowerCase().replace(/[\s_-]+/g, '');
       const p = cleanPin;
       let authenticatedUser = null;
@@ -97,19 +96,13 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
         return;
       }
 
-      // Invalid credentials
-      throw new Error(lang === 'mr' ? 'अवैध नाव किंवा पिन (Super Admin: superadmin / 9999, Admin: admin / 1124)' : 'Invalid username or PIN');
+      // Invalid credentials error without hints
+      throw new Error(lang === 'mr' ? 'अवैध वापरकर्ता नाव किंवा पिन' : 'Invalid username or PIN');
     } catch (err) {
-      setErrorMsg(err.message || 'लॉगिन करता आले नाही. कृपया पुन्हा प्रयत्न करा.');
+      setErrorMsg(err.message || (lang === 'mr' ? 'लॉगिन करता आले नाही. कृपया पुन्हा प्रयत्न करा.' : 'Login failed. Please try again.'));
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillQuickCredentials = (u, p) => {
-    setUsername(u);
-    setPin(p);
-    setErrorMsg('');
   };
 
   return (
@@ -141,32 +134,6 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
             </div>
           )}
 
-          {/* Quick 1-Click Login Shortcuts */}
-          <div className="space-y-1.5">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              जलद लॉगिन (Quick 1-Click Login):
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => fillQuickCredentials('superadmin', '9999')}
-                className="flex items-center justify-center gap-1.5 py-2 px-2 bg-amber-50 hover:bg-amber-100 border border-[#D4AF37]/60 rounded-xl text-xs font-black text-[#4A000B] transition cursor-pointer active:scale-95"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-                <span>👑 सुपर ॲडमिन</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fillQuickCredentials('admin', '1124')}
-                className="flex items-center justify-center gap-1.5 py-2 px-2 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 transition cursor-pointer active:scale-95"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>🚩 कार्यकर्ता ॲडमिन</span>
-              </button>
-            </div>
-          </div>
-
           {/* Username Field */}
           <div>
             <label className="block text-xs font-black text-[#4A000B] mb-1.5">
@@ -176,9 +143,10 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
               <input
                 type="text"
                 required
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="उदा. superadmin किंवा admin"
+                placeholder={lang === 'mr' ? 'वापरकर्ता नाव (Username)' : 'Enter Username'}
                 className="w-full pl-9 pr-3 py-2.5 bg-amber-50/40 border border-[#D4AF37]/60 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#800020]/30 focus:border-[#4A000B]"
               />
               <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
@@ -195,9 +163,10 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
                 type="password"
                 required
                 inputMode="numeric"
+                autoComplete="current-password"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="उदा. 9999 किंवा 1124"
+                placeholder="••••••••"
                 className="w-full pl-9 pr-3 py-2.5 bg-amber-50/40 border border-[#D4AF37]/60 rounded-xl text-xs sm:text-sm font-mono font-black tracking-widest text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#800020]/30 focus:border-[#4A000B]"
               />
               <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
@@ -224,13 +193,6 @@ export function LoginPage({ lang, onLoginSuccess, isOnline }) {
               </>
             )}
           </button>
-
-          {/* Credentials Hint */}
-          <div className="pt-1 text-center">
-            <p className="text-[11px] font-semibold text-slate-600 bg-amber-50/80 border border-[#D4AF37]/30 py-2 px-3 rounded-lg">
-              🔑 {t.login_demo_hint}
-            </p>
-          </div>
         </form>
       </div>
     </div>
